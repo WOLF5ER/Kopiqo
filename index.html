@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Kopiqo — финансовый трекер</title>
+<meta name="description" content="Личный финансовый трекер: счета, бюджеты, цели, достижения." />
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#9AC1A7" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Kopiqo" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" href="icon-192.png" />
+
+<style>
+  html, body { margin: 0; padding: 0; background: #F3EEE3; min-height: 100vh; }
+  #root { min-height: 100vh; }
+  #boot-fallback { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: Arial, sans-serif; color: #8C8875; }
+</style>
+
+<!-- Import map: resolves the bare "react" / "lucide-react" / "recharts" specifiers
+     used inside app.compiled.js to real ESM builds served from a CDN. -->
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react",
+    "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom"
+  }
+}
+</script>
+</head>
+<body>
+<div id="root"><div id="boot-fallback">Загрузка Kopiqo…</div></div>
+
+<!-- Конфигурация окружения (ключи Supabase) должна загрузиться до модулей -->
+<script src="env.js"></script>
+
+<!-- Onboarding Engine bootstrap: defined before auth so login/logout events
+     are never lost. app.compiled.js reuses this same instance (window.__kopiqoBus ||). -->
+<script>
+  window.__kopiqoBus = window.__kopiqoBus || (function () {
+    const listeners = new Map();
+    const queue = [];
+    return {
+      emit(type, payload) {
+        const set = listeners.get(type);
+        if (set && set.size > 0) set.forEach((fn) => { try { fn(payload); } catch (e) { console.error("Kopiqo onboarding bus listener error:", e); } });
+        else { queue.push({ type, payload, at: Date.now() }); if (queue.length > 50) queue.shift(); }
+      },
+      on(type, fn) {
+        if (!listeners.has(type)) listeners.set(type, new Set());
+        listeners.get(type).add(fn);
+        for (let i = queue.length - 1; i >= 0; i--) if (queue[i].type === type) { fn(queue[i].payload); queue.splice(i, 1); }
+        return () => { const s = listeners.get(type); if (s) s.delete(fn); };
+      },
+    };
+  })();
+</script>
+
+<script type="module">
+  import React from "react";
+  import { createRoot } from "react-dom/client";
+  import { ensureSession, openLogoutConfirm } from "./auth.js";
+  import { initCloudStorage, flushPendingSync } from "./storage-sync.js";
+
+  const fallback = document.getElementById("boot-fallback");
+
+  try {
+    // 1. Сессия Supabase: если пользователь уже входил — экран входа не
+    //    показывается; иначе ждём успешного входа/регистрации.
+    if (fallback) fallback.textContent = "Загрузка Kopiqo…";
+    const session = await ensureSession();
+
+    // 2. Поднимаем облачное хранилище: window.storage + загрузка последних
+    //    данных пользователя из Supabase (или локального кэша офлайн).
+    if (fallback) fallback.textContent = "Загружаем ваши данные…";
+    await initCloudStorage(session);
+
+    // 3. Только теперь монтируем приложение — оно читает window.storage
+    //    при старте и получает уже актуальные данные.
+    const { default: App } = await import("./app.compiled.js");
+    const root = createRoot(document.getElementById("root"));
+    root.render(React.createElement(App));
+
+    // 4. Глобальный мостик для кнопки «Выйти из аккаунта» внутри самого
+    //    приложения (вкладка Настройки) — плавающей кнопки поверх больше нет.
+    window.__kopiqoLogout = () => openLogoutConfirm(flushPendingSync);
+  } catch (e) {
+    console.error("Kopiqo boot error:", e);
+    if (fallback) fallback.textContent = "Не удалось запустить Kopiqo. Обновите страницу.";
+  }
+
+  // Register the service worker for offline use / installability.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>

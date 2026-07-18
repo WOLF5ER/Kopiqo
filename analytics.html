@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Kopiqo — аналитика и прогноз</title>
+<meta name="description" content="Анализ трат и прогноз бюджета по данным Kopiqo." />
+
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#9AC1A7" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" href="icon-192.png" />
+
+<style>
+  html, body { margin: 0; padding: 0; background: #F3EEE3; min-height: 100vh; }
+  #root { min-height: 100vh; }
+  #boot-fallback { display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: Arial, sans-serif; color: #8C8875; }
+</style>
+
+<!-- Тот же import map, что и в index.html: bare-спецификаторы react/recharts
+     резолвятся в ESM-сборки с CDN. -->
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react",
+    "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom"
+  }
+}
+</script>
+</head>
+<body>
+<div id="root"><div id="boot-fallback">Загрузка аналитики…</div></div>
+
+<!-- Ключи Supabase должны загрузиться до модулей -->
+<script src="env.js"></script>
+
+<script type="module">
+  import React from "react";
+  import { createRoot } from "react-dom/client";
+  import { ensureSession } from "./auth.js";
+  import { initCloudStorage } from "./storage-sync.js";
+
+  const fallback = document.getElementById("boot-fallback");
+
+  try {
+    // 1. Та же сессия Supabase, что и у основного приложения: если пользователь
+    //    уже входил в Kopiqo, экран входа не появится.
+    const session = await ensureSession();
+
+    // 2. window.storage + гидрация кэша последними данными пользователя —
+    //    аналитика читает finance:state ровно так же, как само приложение.
+    if (fallback) fallback.textContent = "Загружаем ваши данные…";
+    await initCloudStorage(session);
+
+    // 3. Монтируем модуль аналитики (только чтение, данные не изменяет).
+    const { default: Analytics } = await import("./analytics.compiled.js");
+    const root = createRoot(document.getElementById("root"));
+    root.render(React.createElement(Analytics));
+  } catch (e) {
+    console.error("Kopiqo analytics boot error:", e);
+    if (fallback) fallback.textContent = "Не удалось открыть аналитику. Обновите страницу.";
+  }
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>

@@ -42,6 +42,7 @@ export function mountLogoutButton(onBeforeSignOut) {
 /* ------------------------------ Выход ------------------------------------ */
 
 export function openLogoutConfirm(onBeforeSignOut) {
+  injectStyles();
   const overlay = document.createElement("div");
   overlay.className = "kq-auth-overlay kq-confirm-overlay";
   overlay.innerHTML = `

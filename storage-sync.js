@@ -49,7 +49,7 @@ let pushInFlight = null; // текущий push (Promise)
  * уходит в фоновую задачу. Если кэша ещё нет — ждём облако один раз (иначе
  * показать нечего).
  */
-export async function initCloudStorage(session) {
+export async function initCloudStorage(session, opts = {}) {
   userId = session.user.id;
   cachePrefix = `kopiqo:${userId}:`;
   accessToken = session.access_token;
@@ -86,7 +86,7 @@ export async function initCloudStorage(session) {
       // Первая авторизация этого аккаунта: строки в облаке ещё нет.
       // Если на устройстве остались данные от офлайн-версии Kopiqo —
       // бережно переносим их в облако, чтобы ничего не потерялось.
-      const seed = collectSeedData();
+      const seed = injectGuestFlag(collectSeedData(), opts.isGuest);
       const { data: upserted, error: upsertError } = await supabase
         .from("finance_data")
         .upsert({ user_id: userId, data: seed }, { onConflict: "user_id" })
@@ -346,4 +346,17 @@ function collectSeedData() {
 
   if (Object.keys(own).length > 0) return own;
   return legacy; // может быть пустым объектом — это нормально
+}
+
+/** Помечает сид-профиль нового аккаунта как гостевой — вместе с меткой
+ *  времени, чтобы SQL-задача в supabase-setup.sql знала, когда его удалять. */
+function injectGuestFlag(seed, isGuest) {
+  if (!isGuest) return seed;
+  let profile = {};
+  if (seed["finance:profile"]) {
+    try { profile = JSON.parse(seed["finance:profile"]); } catch (e) { profile = {}; }
+  }
+  profile.isGuest = true;
+  profile.guestCreatedAt = new Date().toISOString();
+  return { ...seed, "finance:profile": JSON.stringify(profile) };
 }

@@ -67,7 +67,7 @@
 <script type="module">
   import React from "react";
   import { createRoot } from "react-dom/client";
-  import { ensureSession, openLogoutConfirm } from "./auth.js";
+  import { ensureSession, openLogoutConfirm, wasGuestLogin, upgradeGuestAccount } from "./auth.js";
   import { initCloudStorage, flushPendingSync } from "./storage-sync.js";
 
   const fallback = document.getElementById("boot-fallback");
@@ -81,7 +81,7 @@
     // 2. Поднимаем облачное хранилище: window.storage + загрузка последних
     //    данных пользователя из Supabase (или локального кэша офлайн).
     if (fallback) fallback.textContent = "Загружаем ваши данные…";
-    await initCloudStorage(session);
+    await initCloudStorage(session, { isGuest: wasGuestLogin() });
 
     // 3. Только теперь монтируем приложение — оно читает window.storage
     //    при старте и получает уже актуальные данные.
@@ -92,6 +92,7 @@
     // 4. Глобальный мостик для кнопки «Выйти из аккаунта» внутри самого
     //    приложения (вкладка Настройки) — плавающей кнопки поверх больше нет.
     window.__kopiqoLogout = () => openLogoutConfirm(flushPendingSync);
+    window.__kopiqoUpgradeGuest = upgradeGuestAccount;
   } catch (e) {
     console.error("Kopiqo boot error:", e);
     if (fallback) fallback.textContent = "Не удалось запустить Kopiqo. Обновите страницу.";

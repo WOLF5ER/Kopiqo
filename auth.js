@@ -116,6 +116,9 @@ function showAuthScreen() {
         <p class="kq-auth-hint" data-hint>
           Введите никнейм и PIN-код, чтобы открыть свои данные на этом устройстве.
         </p>
+
+        <button type="button" class="kq-guest-btn" data-guest>Войти как гость</button>
+        <p class="kq-guest-hint">Временный аккаунт без регистрации — данные будут автоматически удалены через несколько дней.</p>
       </div>`;
     document.body.appendChild(root);
 
@@ -126,6 +129,7 @@ function showAuthScreen() {
       error: root.querySelector(".kq-error"),
       submit: root.querySelector("[data-submit]"),
       hint: root.querySelector("[data-hint]"),
+      guest: root.querySelector("[data-guest]"),
     };
 
     let mode = "login";
@@ -213,9 +217,97 @@ function showAuthScreen() {
     }
 
     el.submit.addEventListener("click", submit);
+
+    el.guest.addEventListener("click", async () => {
+      if (busy) return;
+      busy = true;
+      el.guest.disabled = true;
+      const label = el.guest.textContent;
+      el.guest.textContent = "Создаём временный аккаунт…";
+      setError("");
+      try {
+        const session = await doGuestLogin();
+        root.classList.add("is-leaving");
+        setTimeout(() => root.remove(), 250);
+        resolve(session);
+        return;
+      } catch (err) {
+        setError(humanizeAuthError(err, "register"));
+      } finally {
+        busy = false;
+        el.guest.disabled = false;
+        el.guest.textContent = label;
+        updateReady();
+      }
+    });
+
     setMode("login");
     el.nickname.focus();
   });
+}
+
+/* ------------------------------ Гостевой вход ----------------------------- */
+
+let lastLoginWasGuest = false;
+
+/** Читается index.html сразу после ensureSession(), чтобы пометить сид-профиль как гостевой. */
+export function wasGuestLogin() {
+  return lastLoginWasGuest;
+}
+
+function randomGuestCredentials() {
+  const suffix = Math.random().toString(36).slice(2, 10);
+  const pin = String(Math.floor(100000 + Math.random() * 900000));
+  return { nickname: `guest_${suffix}`, pin };
+}
+
+async function doGuestLogin() {
+  lastLoginWasGuest = false;
+  let lastErr = null;
+  // Случайный никнейм почти никогда не совпадёт с существующим, но на всякий
+  // случай пробуем ещё раз, а не падаем сразу.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { nickname, pin } = randomGuestCredentials();
+    try {
+      const session = await doRegister(nickname, pin);
+      lastLoginWasGuest = true;
+      return session;
+    } catch (e) {
+      lastErr = e;
+      if (!(e && e.code === "NICKNAME_TAKEN")) throw e;
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * Превращает гостевой аккаунт в обычный: меняет email/пароль (никнейм/PIN)
+ * у уже вошедшего пользователя через Supabase auth.updateUser — сессия и
+ * данные (finance_data привязаны к тому же user_id) остаются как есть,
+ * просто аккаунт больше не попадёт под автоочистку гостей.
+ */
+export async function upgradeGuestAccount(nickname, pin) {
+  if (!NICKNAME_RE.test(nickname)) {
+    const e = new Error("BAD_NICKNAME");
+    e.code = "BAD_NICKNAME";
+    throw e;
+  }
+  if (!PIN_RE.test(pin)) {
+    const e = new Error("BAD_PIN");
+    e.code = "BAD_PIN";
+    throw e;
+  }
+  const { data: exists, error: rpcError } = await supabase.rpc("nickname_exists", { nick: nickname });
+  if (!rpcError && exists === true) {
+    const e = new Error("NICKNAME_TAKEN");
+    e.code = "NICKNAME_TAKEN";
+    throw e;
+  }
+  const { error } = await supabase.auth.updateUser({
+    email: nicknameToEmail(nickname),
+    password: pin,
+  });
+  if (error) throw error;
 }
 
 /* ------------------------------ Логика Auth ------------------------------ */
@@ -358,6 +450,10 @@ function injectStyles() {
       background: #FFFFFF; color: #8C8875; font: 600 13px 'Inter', sans-serif; cursor: pointer;
     }
     .kq-auth-hint { font-size: 11px; color: #8C8875; line-height: 1.5; margin: 14px 0 0; }
+    .kq-guest-btn { width: 100%; margin-top: 14px; padding: 10px; background: none; border: 1px dashed #D9D2BE; border-radius: 10px; color: #6B4FA0; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .kq-guest-btn:hover { border-color: #A78BD9; }
+    .kq-guest-btn:disabled { opacity: 0.6; cursor: default; }
+    .kq-guest-hint { font-size: 11px; color: #8C8875; line-height: 1.5; margin: 8px 0 0; text-align: center; }
 
     .kq-logout-btn {
       position: fixed; bottom: 20px; left: 20px; z-index: 60;

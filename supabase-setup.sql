@@ -94,3 +94,51 @@ $$;
 
 revoke all on function public.nickname_exists(text) from public;
 grant execute on function public.nickname_exists(text) to anon, authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 4. Автоматическая очистка гостевых аккаунтов.
+--    Гостевой профиль помечается isGuest:true и guestCreatedAt в момент
+--    создания (см. storage-sync.js / auth.js — кнопка «Войти как гость»).
+--    Раз в сутки удаляются гостевые аккаунты старше GUEST_TTL_DAYS — вместе
+--    с записью в auth.users (finance_data удалится каскадно по внешнему
+--    ключу user_id references auth.users(id) on delete cascade).
+--
+--    Требует расширения pg_cron — обычно уже доступно в проекте Supabase;
+--    если create extension ниже выдаст ошибку прав, включите pg_cron
+--    вручную: Dashboard → Database → Extensions → pg_cron.
+-- ----------------------------------------------------------------------------
+create extension if not exists pg_cron with schema extensions;
+
+create or replace function public.cleanup_guest_accounts()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  guest_ttl_days constant int := 7; -- поменяйте здесь, если нужен другой срок
+begin
+  delete from auth.users
+  where id in (
+    select fd.user_id
+    from public.finance_data fd
+    where (fd.data ->> 'finance:profile') is not null
+      and coalesce(((fd.data ->> 'finance:profile')::jsonb ->> 'isGuest')::boolean, false) is true
+      and ((fd.data ->> 'finance:profile')::jsonb ->> 'guestCreatedAt')::timestamptz
+          < now() - make_interval(days => guest_ttl_days)
+  );
+end;
+$$;
+
+revoke all on function public.cleanup_guest_accounts() from public;
+
+-- Идемпотентная регистрация: снимаем прошлое расписание с этим именем (если
+-- скрипт уже запускали раньше) и ставим заново.
+select cron.unschedule('kopiqo-cleanup-guest-accounts')
+where exists (select 1 from cron.job where jobname = 'kopiqo-cleanup-guest-accounts');
+
+select cron.schedule(
+  'kopiqo-cleanup-guest-accounts',
+  '0 3 * * *', -- каждый день в 03:00 UTC
+  $$select public.cleanup_guest_accounts()$$
+);

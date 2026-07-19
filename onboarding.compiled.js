@@ -332,6 +332,9 @@ var first_launch_default = {
       target: '[data-tour="nav-budgets"]',
       placement: "auto",
       completeWhen: { type: "event", event: "tab_opened", match: { tab: "budgets" } },
+      beforeEnter: () => {
+        if (window.__kopiqoExpandNav) window.__kopiqoExpandNav();
+      },
       nextStep: "categories-list-tour"
     },
     {
@@ -361,6 +364,9 @@ var first_launch_default = {
       target: '[data-tour="nav-analytics"]',
       placement: "auto",
       completeWhen: { type: "event", event: "analytics_opened" },
+      beforeEnter: () => {
+        if (window.__kopiqoExpandNav) window.__kopiqoExpandNav();
+      },
       nextStep: "analytics-overview-tour"
     },
     {
@@ -514,78 +520,136 @@ function findVisibleTarget(selector) {
   return candidates[0] || null;
 }
 
-// onboarding/core/isActuallyVisible.js
-function isActuallyVisible(el) {
-  const r = el.getBoundingClientRect();
-  if (r.width <= 0 || r.height <= 0) return false;
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const points = [
-    [r.left + r.width / 2, r.top + r.height / 2],
-    [r.left + Math.min(4, r.width / 4), r.top + Math.min(4, r.height / 4)],
-    [r.right - Math.min(4, r.width / 4), r.top + Math.min(4, r.height / 4)],
-    [r.left + Math.min(4, r.width / 4), r.bottom - Math.min(4, r.height / 4)],
-    [r.right - Math.min(4, r.width / 4), r.bottom - Math.min(4, r.height / 4)]
-  ];
-  let sampled = 0;
-  let hits = 0;
-  for (const [x, y] of points) {
-    if (x < 0 || y < 0 || x > vw || y > vh) continue;
-    sampled++;
-    const hit = document.elementFromPoint(x, y);
-    if (hit && (hit === el || el.contains(hit))) hits++;
+// onboarding/core/safeInsets.js
+var MAX_INSET = 160;
+var CACHE_TTL_MS = 500;
+var KNOWN_HEADER_SELECTORS = [".gb-topnav", ".gb-topbar"];
+var cached = null;
+var cachedAt = 0;
+function measureKnownHeaders() {
+  let top = 0;
+  for (const sel of KNOWN_HEADER_SELECTORS) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    const style = window.getComputedStyle(el);
+    if (style.display === "none") continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.top <= 2 && rect.bottom > 0) top = Math.max(top, rect.bottom);
   }
-  if (sampled === 0) return false;
-  return hits / sampled >= 0.4;
+  return top;
+}
+function scanForStickyChrome() {
+  let top = 0;
+  let bottom = 0;
+  const candidates = document.querySelectorAll("body *");
+  for (const el of candidates) {
+    const style = window.getComputedStyle(el);
+    if (style.position !== "fixed" && style.position !== "sticky") continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 40 || rect.height < 1 || rect.height > MAX_INSET) continue;
+    if (Math.abs(rect.top) <= 2 && rect.width >= window.innerWidth * 0.5) {
+      top = Math.max(top, rect.height);
+    }
+    if (Math.abs(window.innerHeight - rect.bottom) <= 2 && rect.width >= window.innerWidth * 0.5) {
+      bottom = Math.max(bottom, rect.height);
+    }
+  }
+  return { top, bottom };
+}
+function getSafeInsets() {
+  const now = performance.now();
+  if (cached && now - cachedAt < CACHE_TTL_MS) return cached;
+  const knownTop = measureKnownHeaders();
+  let top = knownTop;
+  let bottom = 0;
+  if (!knownTop) {
+    const scanned = scanForStickyChrome();
+    top = scanned.top;
+    bottom = scanned.bottom;
+  } else {
+    bottom = scanForStickyChrome().bottom;
+  }
+  cached = { top: Math.min(top, MAX_INSET), bottom: Math.min(bottom, MAX_INSET) };
+  cachedAt = now;
+  return cached;
+}
+function isInsideKnownHeader(el) {
+  if (!el) return false;
+  for (const sel of KNOWN_HEADER_SELECTORS) {
+    const header = document.querySelector(sel);
+    if (header && header !== el && header.contains(el)) return true;
+  }
+  return false;
 }
 
 // onboarding/ui/Spotlight.js
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var DIM = "rgba(20, 20, 15, 0.55)";
+var MIN_VISIBLE_FRACTION = 0.5;
 var SETTLE_DELAY_MS = 220;
+function donutPath(vw, vh, left, top, right, bottom, radius) {
+  const l = Math.max(0, left), t = Math.max(0, top), r = Math.min(vw, right), b = Math.min(vh, bottom);
+  const outer = `M0 0 H${vw} V${vh} H0 Z`;
+  if (r <= l || b <= t) return outer;
+  const w = r - l, h = b - t;
+  const rad = Math.max(0, Math.min(radius, w / 2, h / 2));
+  const inner = rad > 0 ? `M${l + rad} ${t} A${rad} ${rad} 0 0 0 ${l} ${t + rad} V${b - rad} A${rad} ${rad} 0 0 0 ${l + rad} ${b} H${r - rad} A${rad} ${rad} 0 0 0 ${r} ${b - rad} V${t + rad} A${rad} ${rad} 0 0 0 ${r - rad} ${t} Z` : `M${l} ${t} V${b} H${r} V${t} H${l} Z`;
+  return `${outer} ${inner}`;
+}
 function Spotlight({ rect, targetSelector, hasTarget, padding = 8, radius = 12, duration = 300, reducedMotion, viewport, insets }) {
-  const topRef = useRef(null);
-  const bottomRef = useRef(null);
-  const leftRef = useRef(null);
-  const rightRef = useRef(null);
+  const overlayRef = useRef(null);
   const ringRef = useRef(null);
   const hiddenRef = useRef(false);
   const safeTop = insets && insets.top || 0;
   const safeBottom = insets && insets.bottom || 0;
   const setPieceVisible = (visible) => {
-    [topRef, bottomRef, leftRef, rightRef, ringRef].forEach((r) => {
-      if (r.current) r.current.style.display = visible ? "" : "none";
-    });
+    if (overlayRef.current) overlayRef.current.style.display = visible ? "" : "none";
+    if (ringRef.current) ringRef.current.style.display = visible ? "" : "none";
   };
-  const applyGeometry = useCallback((r) => {
+  const visibleFraction2 = useCallback((r) => {
+    const vv = window.visualViewport;
+    const vh = vv ? vv.height : window.innerHeight;
+    const oy = vv ? vv.offsetTop : 0;
+    const safeMin = oy + safeTop, safeMax = oy + vh - safeBottom;
+    const visibleTop = Math.max(r.top, safeMin);
+    const visibleBottom = Math.min(r.bottom, safeMax);
+    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+    return r.height > 0 ? visibleHeight / r.height : 0;
+  }, [safeTop, safeBottom]);
+  const isVisibleEnough = useCallback((el, r) => isInsideKnownHeader(el) || visibleFraction2(r) >= MIN_VISIBLE_FRACTION, [visibleFraction2]);
+  const applyGeometry = useCallback((r, el) => {
     const vv = window.visualViewport;
     const vw = vv ? vv.width : window.innerWidth;
     const vh = vv ? vv.height : window.innerHeight;
     const ox = vv ? vv.offsetLeft : 0, oy = vv ? vv.offsetTop : 0;
+    const effSafeTop = isInsideKnownHeader(el) ? 0 : safeTop;
+    const effSafeBottom = isInsideKnownHeader(el) ? 0 : safeBottom;
     const rawTop = r.top - oy, rawLeft = r.left - ox;
-    const cutTop = Math.max(rawTop - padding, safeTop);
-    const cutLeft = rawLeft - padding;
-    const cutWidth = r.width + padding * 2;
-    const cutBottom = Math.min(rawTop - padding + r.height + padding * 2, vh - safeBottom);
+    const cutTop = Math.round(Math.max(rawTop - padding, effSafeTop));
+    const cutLeft = Math.round(rawLeft - padding);
+    const cutWidth = Math.round(r.width + padding * 2);
+    const cutBottom = Math.round(Math.min(rawTop - padding + r.height + padding * 2, vh - effSafeBottom));
     const cutRight = cutLeft + cutWidth;
     const rowHeight = Math.max(0, cutBottom - cutTop);
-    if (topRef.current) Object.assign(topRef.current.style, { top: "0px", left: "0px", width: vw + "px", height: Math.max(0, cutTop) + "px" });
-    if (bottomRef.current) Object.assign(bottomRef.current.style, { top: cutBottom + "px", left: "0px", width: vw + "px", height: Math.max(0, vh - cutBottom) + "px" });
-    if (leftRef.current) Object.assign(leftRef.current.style, { top: cutTop + "px", left: "0px", width: Math.max(0, cutLeft) + "px", height: rowHeight + "px" });
-    if (rightRef.current) Object.assign(rightRef.current.style, { top: cutTop + "px", left: cutRight + "px", width: Math.max(0, vw - cutRight) + "px", height: rowHeight + "px" });
-    if (ringRef.current) Object.assign(ringRef.current.style, { top: cutTop + "px", left: cutLeft + "px", width: cutWidth + "px", height: rowHeight + "px" });
-  }, [padding, safeTop, safeBottom]);
+    if (overlayRef.current) {
+      overlayRef.current.style.clipPath = `path("${donutPath(vw, vh, cutLeft, cutTop, cutRight, cutBottom, radius)}")`;
+    }
+    if (ringRef.current) {
+      Object.assign(ringRef.current.style, { top: cutTop + "px", left: cutLeft + "px", width: cutWidth + "px", height: rowHeight + "px" });
+    }
+  }, [padding, safeTop, safeBottom, radius]);
   useEffect(() => {
     if (!rect) return;
     const el = targetSelector ? findVisibleTarget(targetSelector) : null;
-    if (el && !isActuallyVisible(el)) {
+    if (!isVisibleEnough(el, rect)) {
       hiddenRef.current = true;
       setPieceVisible(false);
       return;
     }
     hiddenRef.current = false;
     setPieceVisible(true);
-    applyGeometry(rect);
-  }, [rect, applyGeometry, targetSelector]);
+    applyGeometry(rect, el);
+  }, [rect, applyGeometry, isVisibleEnough, targetSelector]);
   useEffect(() => {
     if (!targetSelector) return;
     let raf = null;
@@ -594,7 +658,8 @@ function Spotlight({ rect, targetSelector, hasTarget, padding = 8, radius = 12, 
       const el = findVisibleTarget(targetSelector);
       raf = null;
       if (!el) return;
-      if (!isActuallyVisible(el)) {
+      const r = el.getBoundingClientRect();
+      if (!isVisibleEnough(el, r)) {
         if (!hiddenRef.current) {
           hiddenRef.current = true;
           setPieceVisible(false);
@@ -605,7 +670,7 @@ function Spotlight({ rect, targetSelector, hasTarget, padding = 8, radius = 12, 
           setPieceVisible(true);
         }
         if (ringRef.current) ringRef.current.style.transition = "none";
-        applyGeometry(el.getBoundingClientRect());
+        applyGeometry(r, el);
       }
     };
     const scheduleSettleCheck = () => {
@@ -613,7 +678,8 @@ function Spotlight({ rect, targetSelector, hasTarget, padding = 8, radius = 12, 
       settleTimer = setTimeout(() => {
         const el = findVisibleTarget(targetSelector);
         if (!el) return;
-        if (!isActuallyVisible(el)) {
+        const r = el.getBoundingClientRect();
+        if (!isVisibleEnough(el, r)) {
           el.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center", inline: "nearest" });
         }
       }, SETTLE_DELAY_MS);
@@ -639,16 +705,23 @@ function Spotlight({ rect, targetSelector, hasTarget, padding = 8, radius = 12, 
       if (raf) cancelAnimationFrame(raf);
       if (settleTimer) clearTimeout(settleTimer);
     };
-  }, [targetSelector, applyGeometry, reducedMotion]);
+  }, [targetSelector, applyGeometry, isVisibleEnough, reducedMotion]);
   if (!rect) {
     if (hasTarget) return null;
+    const vv = viewport;
+    const vw = vv ? vv.width : typeof window !== "undefined" ? window.innerWidth : 0;
+    const vh = vv ? vv.height : typeof window !== "undefined" ? window.innerHeight : 0;
     return /* @__PURE__ */ jsx(
       "div",
       {
         style: {
           position: "fixed",
-          inset: 0,
+          top: 0,
+          left: 0,
+          width: vw,
+          height: vh,
           background: DIM,
+          clipPath: "none",
           zIndex: 1e5,
           transition: reducedMotion ? "none" : `opacity ${duration}ms ease`
         }
@@ -657,10 +730,22 @@ function Spotlight({ rect, targetSelector, hasTarget, padding = 8, radius = 12, 
   }
   const ringTransition = reducedMotion ? "none" : `top ${duration}ms ease, left ${duration}ms ease, width ${duration}ms ease, height ${duration}ms ease`;
   return /* @__PURE__ */ jsxs(Fragment, { children: [
-    /* @__PURE__ */ jsx("div", { ref: topRef, style: { position: "fixed", background: DIM, zIndex: 1e5 } }),
-    /* @__PURE__ */ jsx("div", { ref: bottomRef, style: { position: "fixed", background: DIM, zIndex: 1e5 } }),
-    /* @__PURE__ */ jsx("div", { ref: leftRef, style: { position: "fixed", background: DIM, zIndex: 1e5 } }),
-    /* @__PURE__ */ jsx("div", { ref: rightRef, style: { position: "fixed", background: DIM, zIndex: 1e5 } }),
+    /* @__PURE__ */ jsx(
+      "div",
+      {
+        ref: overlayRef,
+        style: {
+          position: "fixed",
+          inset: 0,
+          background: DIM,
+          zIndex: 1e5
+          // clip-path makes the cutout region both visually transparent
+          // AND non-blocking (no pointer-events reach this element there),
+          // for free — no separate bookkeeping needed to keep clicks
+          // working over the highlighted target.
+        }
+      }
+    ),
     /* @__PURE__ */ jsx(
       "div",
       {
@@ -668,7 +753,7 @@ function Spotlight({ rect, targetSelector, hasTarget, padding = 8, radius = 12, 
         style: {
           position: "fixed",
           borderRadius: radius,
-          boxShadow: "0 0 0 2px rgba(255,255,255,0.55), 0 0 24px rgba(255,255,255,0.25)",
+          boxShadow: "0 0 1.5px 2px rgba(255,255,255,0.55), 0 0 24px rgba(255,255,255,0.25)",
           zIndex: 1e5,
           pointerEvents: "none",
           transition: ringTransition
@@ -679,13 +764,22 @@ function Spotlight({ rect, targetSelector, hasTarget, padding = 8, radius = 12, 
 }
 
 // onboarding/core/ensureVisible.js
+var SAFE_MARGIN = 16;
 function ensureVisible(el, opts = {}) {
   return new Promise((resolve) => {
     if (!el) {
       resolve();
       return;
     }
-    if (isActuallyVisible(el)) {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    const vw = vv ? vv.width : window.innerWidth;
+    const vh = vv ? vv.height : window.innerHeight;
+    const ox = vv ? vv.offsetLeft : 0;
+    const oy = vv ? vv.offsetTop : 0;
+    const insets = getSafeInsets();
+    const rect = el.getBoundingClientRect();
+    const fits = rect.top >= oy + insets.top + SAFE_MARGIN && rect.bottom <= oy + vh - insets.bottom - SAFE_MARGIN && rect.left >= ox + SAFE_MARGIN && rect.right <= ox + vw - SAFE_MARGIN;
+    if (fits) {
       resolve();
       return;
     }
@@ -760,27 +854,6 @@ function computePlacement(rect, cardSize, requested, viewport, insets) {
   return { placement, top, left };
 }
 
-// onboarding/core/safeInsets.js
-var MAX_INSET = 90;
-function getSafeInsets() {
-  let top = 0;
-  let bottom = 0;
-  const candidates = document.querySelectorAll("body *");
-  for (const el of candidates) {
-    const style = window.getComputedStyle(el);
-    if (style.position !== "fixed" && style.position !== "sticky") continue;
-    const rect = el.getBoundingClientRect();
-    if (rect.width < 40 || rect.height < 1 || rect.height > MAX_INSET) continue;
-    if (Math.abs(rect.top) <= 2 && rect.width >= window.innerWidth * 0.5) {
-      top = Math.max(top, rect.height);
-    }
-    if (Math.abs(window.innerHeight - rect.bottom) <= 2 && rect.width >= window.innerWidth * 0.5) {
-      bottom = Math.max(bottom, rect.height);
-    }
-  }
-  return { top: Math.min(top, MAX_INSET), bottom: Math.min(bottom, MAX_INSET) };
-}
-
 // onboarding/ui/Overlay.js
 import { Fragment as Fragment2, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -801,6 +874,18 @@ var cardStyle = (top, left, visible, reducedMotion) => ({
   opacity: visible ? 1 : 0,
   transition: reducedMotion ? "none" : "opacity 200ms ease, top 300ms ease, left 300ms ease"
 });
+var OVERLAY_MIN_VISIBLE_FRACTION = 0.5;
+function visibleFraction(r, insets) {
+  const vv = window.visualViewport;
+  const vh = vv ? vv.height : window.innerHeight;
+  const oy = vv ? vv.offsetTop : 0;
+  const safeTop = insets && insets.top || 0, safeBottom = insets && insets.bottom || 0;
+  const safeMin = oy + safeTop, safeMax = oy + vh - safeBottom;
+  const visibleTop = Math.max(r.top, safeMin);
+  const visibleBottom = Math.min(r.bottom, safeMax);
+  const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+  return r.height > 0 ? visibleHeight / r.height : 0;
+}
 var primaryBtnStyle = { background: "var(--sage-fill)", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "11px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Inter', sans-serif", minHeight: 40 };
 var skipBtnStyle = { background: "none", border: "none", color: "var(--muted)", fontSize: 14, cursor: "pointer", fontFamily: "'Inter', sans-serif", padding: "11px 6px", minHeight: 40 };
 var closeBtnStyle = { background: "none", border: "1px solid var(--border)", borderRadius: 8, color: "var(--muted)", fontSize: 16, cursor: "pointer", lineHeight: 1, width: 34, height: 34, flexShrink: 0, fontFamily: "'Inter', sans-serif" };
@@ -814,6 +899,21 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
   const measuredForStepRef = useRef2(null);
   const cardRef = useRef2(null);
   const reducedMotion = prefersReducedMotion();
+  const getViewportNow = () => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    return vv ? { width: vv.width, height: vv.height } : { width: window.innerWidth, height: window.innerHeight };
+  };
+  const [viewport, setViewport] = useState(getViewportNow);
+  useEffect2(() => {
+    const update = () => setViewport(getViewportNow());
+    window.addEventListener("resize", update);
+    const vv = window.visualViewport;
+    if (vv) vv.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      if (vv) vv.removeEventListener("resize", update);
+    };
+  }, []);
   useEffect2(() => engine.subscribe(setState), [engine]);
   const active = state.active;
   const scenario = active ? getScenario2(active.scenarioId) : null;
@@ -831,9 +931,9 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
       return;
     }
     const r = el.getBoundingClientRect();
-    const vv2 = window.visualViewport;
-    const ox = vv2 ? vv2.offsetLeft : 0, oy = vv2 ? vv2.offsetTop : 0;
-    insufficientlyVisibleRef.current = !isActuallyVisible(el);
+    const vv = window.visualViewport;
+    const ox = vv ? vv.offsetLeft : 0, oy = vv ? vv.offsetTop : 0;
+    insufficientlyVisibleRef.current = !isInsideKnownHeader(el) && visibleFraction(r, getSafeInsets()) < OVERLAY_MIN_VISIBLE_FRACTION;
     rectForStepRef.current = step.id;
     setRect({ top: r.top - oy, bottom: r.bottom - oy, left: r.left - ox, right: r.right - ox, width: r.width, height: r.height });
   }, [step]);
@@ -846,15 +946,18 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
   useEffect2(() => {
     if (!step) return;
     let cancelled = false;
-    (async () => {
-      if (step.target) {
-        const el = findVisibleTarget(step.target);
-        await ensureVisible(el, { reducedMotion });
-      }
-      if (!cancelled) recomputeRect();
-    })();
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(async () => {
+        if (step.target) {
+          const el = findVisibleTarget(step.target);
+          await ensureVisible(el, { reducedMotion });
+        }
+        if (!cancelled) recomputeRect();
+      });
+    });
     return () => {
       cancelled = true;
+      cancelAnimationFrame(raf);
     };
   }, [step, recomputeRect, reducedMotion]);
   useEffect2(() => {
@@ -869,17 +972,17 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
     };
     window.addEventListener("resize", scheduleRecompute);
     window.addEventListener("scroll", scheduleRecompute, true);
-    const vv2 = window.visualViewport;
-    if (vv2) {
-      vv2.addEventListener("resize", scheduleRecompute);
-      vv2.addEventListener("scroll", scheduleRecompute);
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", scheduleRecompute);
+      vv.addEventListener("scroll", scheduleRecompute);
     }
     return () => {
       window.removeEventListener("resize", scheduleRecompute);
       window.removeEventListener("scroll", scheduleRecompute, true);
-      if (vv2) {
-        vv2.removeEventListener("resize", scheduleRecompute);
-        vv2.removeEventListener("scroll", scheduleRecompute);
+      if (vv) {
+        vv.removeEventListener("resize", scheduleRecompute);
+        vv.removeEventListener("scroll", scheduleRecompute);
       }
       if (raf) cancelAnimationFrame(raf);
     };
@@ -926,9 +1029,9 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
   }, [step, engine]);
   if (!step || state.paused) return null;
   const spotlightCfg = step.spotlight || {};
-  const vv = typeof window !== "undefined" ? window.visualViewport : null;
-  const viewport = vv ? { width: vv.width, height: vv.height } : { width: window.innerWidth, height: window.innerHeight };
-  const insets = getSafeInsets();
+  const targetEl = step.target ? findVisibleTarget(step.target) : null;
+  const rawInsets = getSafeInsets();
+  const insets = isInsideKnownHeader(targetEl) ? { top: 0, bottom: 0 } : rawInsets;
   const placement = computePlacement(rect, cardSize, step.placement, viewport, insets);
   const waitingOnTarget = !!step.target && (rect === null || rectForStepRef.current !== step.id || insufficientlyVisibleRef.current);
   const notYetMeasured = measuredForStepRef.current !== step.id;

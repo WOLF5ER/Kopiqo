@@ -1,4 +1,4 @@
-const CACHE_NAME = "kopiqo-cache-v5";
+const CACHE_NAME = "kopiqo-cache-v6";
 const APP_SHELL = [
   "./index.html",
   "./app.compiled.js",

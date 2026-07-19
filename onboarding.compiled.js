@@ -264,10 +264,10 @@ function createEngine(progressStore, bus, ctx = {}) {
 // onboarding/scenarios/first-launch.js
 var first_launch_default = {
   id: "first-launch",
-  version: 1,
+  version: 2,
   trigger: {
     type: "auto",
-    // ctx = { getAppState } supplied by the host at init time.
+    // ctx = { getAppState, getProfile } supplied by the host at init time.
     when: (ctx) => {
       const state = ctx.getAppState ? ctx.getAppState() : null;
       const profile = ctx.getProfile ? ctx.getProfile() : null;
@@ -284,36 +284,113 @@ var first_launch_default = {
       placement: "center",
       completeWhen: { type: "action" },
       actionLabel: "onboarding_fl_welcome_action",
-      nextStep: "add-expense"
+      nextStep: "open-add-form"
     },
     {
-      id: "add-expense",
+      id: "open-add-form",
       title: "onboarding_fl_expense_title",
       description: "onboarding_fl_expense_desc",
       target: '[data-tour="add-transaction-btn"]',
       placement: "bottom",
-      completeWhen: { type: "event", event: "expense_created" },
+      completeWhen: { type: "event", event: "transaction_form_opened" },
       beforeEnter: () => {
         if (window.__kopiqoSetTab) window.__kopiqoSetTab("calendar");
       },
-      nextStep: "explore-categories"
+      nextStep: "pick-type"
     },
     {
-      id: "explore-categories",
+      id: "pick-type",
+      title: "onboarding_fl_type_title",
+      description: "onboarding_fl_type_desc",
+      target: '[data-tour="tx-type-toggle"]',
+      placement: "bottom",
+      completeWhen: { type: "event", event: "transaction_type_selected" },
+      nextStep: "enter-amount"
+    },
+    {
+      id: "enter-amount",
+      title: "onboarding_fl_amount_title",
+      description: "onboarding_fl_amount_desc",
+      target: '[data-tour="tx-amount-input"]',
+      placement: "auto",
+      completeWhen: { type: "event", event: "transaction_amount_entered" },
+      nextStep: "submit-transaction"
+    },
+    {
+      id: "submit-transaction",
+      title: "onboarding_fl_submit_title",
+      description: "onboarding_fl_submit_desc",
+      target: '[data-tour="tx-submit-btn"]',
+      placement: "top",
+      completeWhen: { type: "event", event: "transaction_created" },
+      nextStep: "goto-categories"
+    },
+    {
+      id: "goto-categories",
       title: "onboarding_fl_categories_title",
       description: "onboarding_fl_categories_desc",
       target: '[data-tour="nav-budgets"]',
-      placement: "top",
+      placement: "auto",
       completeWhen: { type: "event", event: "tab_opened", match: { tab: "budgets" } },
-      nextStep: "explore-analytics"
+      nextStep: "categories-list-tour"
     },
     {
-      id: "explore-analytics",
+      id: "categories-list-tour",
+      title: "onboarding_fl_catlist_title",
+      description: "onboarding_fl_catlist_desc",
+      target: '[data-tour="category-list"]',
+      placement: "auto",
+      completeWhen: { type: "action" },
+      actionLabel: "onboarding_got_it",
+      nextStep: "categories-add-tour"
+    },
+    {
+      id: "categories-add-tour",
+      title: "onboarding_fl_catadd_title",
+      description: "onboarding_fl_catadd_desc",
+      target: '[data-tour="add-category-btn"]',
+      placement: "auto",
+      completeWhen: { type: "action" },
+      actionLabel: "onboarding_got_it",
+      nextStep: "goto-analytics"
+    },
+    {
+      id: "goto-analytics",
       title: "onboarding_fl_analytics_title",
       description: "onboarding_fl_analytics_desc",
       target: '[data-tour="nav-analytics"]',
-      placement: "top",
+      placement: "auto",
       completeWhen: { type: "event", event: "analytics_opened" },
+      nextStep: "analytics-overview-tour"
+    },
+    {
+      id: "analytics-overview-tour",
+      title: "onboarding_fl_an_overview_title",
+      description: "onboarding_fl_an_overview_desc",
+      target: '[data-tour="analytics-tab-overview"]',
+      placement: "auto",
+      completeWhen: { type: "action" },
+      actionLabel: "onboarding_got_it",
+      nextStep: "analytics-categories-tour"
+    },
+    {
+      id: "analytics-categories-tour",
+      title: "onboarding_fl_an_categories_title",
+      description: "onboarding_fl_an_categories_desc",
+      target: '[data-tour="analytics-tab-categories"]',
+      placement: "auto",
+      completeWhen: { type: "action" },
+      actionLabel: "onboarding_got_it",
+      nextStep: "analytics-forecast-tour"
+    },
+    {
+      id: "analytics-forecast-tour",
+      title: "onboarding_fl_an_forecast_title",
+      description: "onboarding_fl_an_forecast_desc",
+      target: '[data-tour="analytics-tab-forecast"]',
+      placement: "auto",
+      completeWhen: { type: "action" },
+      actionLabel: "onboarding_got_it",
       nextStep: "done"
     },
     {
@@ -422,44 +499,183 @@ function generateDemoData(now = /* @__PURE__ */ new Date()) {
 }
 
 // onboarding/ui/Overlay.js
-import React2, { useState, useEffect, useRef, useCallback } from "react";
+import React2, { useState, useEffect as useEffect2, useRef as useRef2, useCallback as useCallback2 } from "react";
 
 // onboarding/ui/Spotlight.js
-import React from "react";
-import { jsx } from "react/jsx-runtime";
-function Spotlight({ rect, padding = 8, radius = 12, duration = 300, reducedMotion }) {
-  const transition = reducedMotion ? "none" : `top ${duration}ms ease, left ${duration}ms ease, width ${duration}ms ease, height ${duration}ms ease, opacity ${duration}ms ease`;
+import React, { useRef, useEffect, useCallback } from "react";
+
+// onboarding/core/findVisibleTarget.js
+function findVisibleTarget(selector) {
+  const candidates = document.querySelectorAll(selector);
+  for (const el of candidates) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) return el;
+  }
+  return candidates[0] || null;
+}
+
+// onboarding/core/isActuallyVisible.js
+function isActuallyVisible(el) {
+  const r = el.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return false;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const points = [
+    [r.left + r.width / 2, r.top + r.height / 2],
+    [r.left + Math.min(4, r.width / 4), r.top + Math.min(4, r.height / 4)],
+    [r.right - Math.min(4, r.width / 4), r.top + Math.min(4, r.height / 4)],
+    [r.left + Math.min(4, r.width / 4), r.bottom - Math.min(4, r.height / 4)],
+    [r.right - Math.min(4, r.width / 4), r.bottom - Math.min(4, r.height / 4)]
+  ];
+  let sampled = 0;
+  let hits = 0;
+  for (const [x, y] of points) {
+    if (x < 0 || y < 0 || x > vw || y > vh) continue;
+    sampled++;
+    const hit = document.elementFromPoint(x, y);
+    if (hit && (hit === el || el.contains(hit))) hits++;
+  }
+  if (sampled === 0) return false;
+  return hits / sampled >= 0.4;
+}
+
+// onboarding/ui/Spotlight.js
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+var DIM = "rgba(20, 20, 15, 0.55)";
+var SETTLE_DELAY_MS = 220;
+function Spotlight({ rect, targetSelector, hasTarget, padding = 8, radius = 12, duration = 300, reducedMotion, viewport, insets }) {
+  const topRef = useRef(null);
+  const bottomRef = useRef(null);
+  const leftRef = useRef(null);
+  const rightRef = useRef(null);
+  const ringRef = useRef(null);
+  const hiddenRef = useRef(false);
+  const safeTop = insets && insets.top || 0;
+  const safeBottom = insets && insets.bottom || 0;
+  const setPieceVisible = (visible) => {
+    [topRef, bottomRef, leftRef, rightRef, ringRef].forEach((r) => {
+      if (r.current) r.current.style.display = visible ? "" : "none";
+    });
+  };
+  const applyGeometry = useCallback((r) => {
+    const vv = window.visualViewport;
+    const vw = vv ? vv.width : window.innerWidth;
+    const vh = vv ? vv.height : window.innerHeight;
+    const ox = vv ? vv.offsetLeft : 0, oy = vv ? vv.offsetTop : 0;
+    const rawTop = r.top - oy, rawLeft = r.left - ox;
+    const cutTop = Math.max(rawTop - padding, safeTop);
+    const cutLeft = rawLeft - padding;
+    const cutWidth = r.width + padding * 2;
+    const cutBottom = Math.min(rawTop - padding + r.height + padding * 2, vh - safeBottom);
+    const cutRight = cutLeft + cutWidth;
+    const rowHeight = Math.max(0, cutBottom - cutTop);
+    if (topRef.current) Object.assign(topRef.current.style, { top: "0px", left: "0px", width: vw + "px", height: Math.max(0, cutTop) + "px" });
+    if (bottomRef.current) Object.assign(bottomRef.current.style, { top: cutBottom + "px", left: "0px", width: vw + "px", height: Math.max(0, vh - cutBottom) + "px" });
+    if (leftRef.current) Object.assign(leftRef.current.style, { top: cutTop + "px", left: "0px", width: Math.max(0, cutLeft) + "px", height: rowHeight + "px" });
+    if (rightRef.current) Object.assign(rightRef.current.style, { top: cutTop + "px", left: cutRight + "px", width: Math.max(0, vw - cutRight) + "px", height: rowHeight + "px" });
+    if (ringRef.current) Object.assign(ringRef.current.style, { top: cutTop + "px", left: cutLeft + "px", width: cutWidth + "px", height: rowHeight + "px" });
+  }, [padding, safeTop, safeBottom]);
+  useEffect(() => {
+    if (!rect) return;
+    const el = targetSelector ? findVisibleTarget(targetSelector) : null;
+    if (el && !isActuallyVisible(el)) {
+      hiddenRef.current = true;
+      setPieceVisible(false);
+      return;
+    }
+    hiddenRef.current = false;
+    setPieceVisible(true);
+    applyGeometry(rect);
+  }, [rect, applyGeometry, targetSelector]);
+  useEffect(() => {
+    if (!targetSelector) return;
+    let raf = null;
+    let settleTimer = null;
+    const update = () => {
+      const el = findVisibleTarget(targetSelector);
+      raf = null;
+      if (!el) return;
+      if (!isActuallyVisible(el)) {
+        if (!hiddenRef.current) {
+          hiddenRef.current = true;
+          setPieceVisible(false);
+        }
+      } else {
+        if (hiddenRef.current) {
+          hiddenRef.current = false;
+          setPieceVisible(true);
+        }
+        if (ringRef.current) ringRef.current.style.transition = "none";
+        applyGeometry(el.getBoundingClientRect());
+      }
+    };
+    const scheduleSettleCheck = () => {
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        const el = findVisibleTarget(targetSelector);
+        if (!el) return;
+        if (!isActuallyVisible(el)) {
+          el.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center", inline: "nearest" });
+        }
+      }, SETTLE_DELAY_MS);
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+      scheduleSettleCheck();
+    };
+    window.addEventListener("scroll", schedule, true);
+    window.addEventListener("resize", schedule);
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", schedule);
+      vv.addEventListener("scroll", schedule);
+    }
+    return () => {
+      window.removeEventListener("scroll", schedule, true);
+      window.removeEventListener("resize", schedule);
+      if (vv) {
+        vv.removeEventListener("resize", schedule);
+        vv.removeEventListener("scroll", schedule);
+      }
+      if (raf) cancelAnimationFrame(raf);
+      if (settleTimer) clearTimeout(settleTimer);
+    };
+  }, [targetSelector, applyGeometry, reducedMotion]);
   if (!rect) {
+    if (hasTarget) return null;
     return /* @__PURE__ */ jsx(
       "div",
       {
         style: {
           position: "fixed",
           inset: 0,
-          background: "rgba(20, 20, 15, 0.55)",
-          zIndex: 9998,
+          background: DIM,
+          zIndex: 1e5,
           transition: reducedMotion ? "none" : `opacity ${duration}ms ease`
         }
       }
     );
   }
-  return /* @__PURE__ */ jsx(
-    "div",
-    {
-      style: {
-        position: "fixed",
-        top: rect.top - padding,
-        left: rect.left - padding,
-        width: rect.width + padding * 2,
-        height: rect.height + padding * 2,
-        borderRadius: radius,
-        boxShadow: "0 0 0 9999px rgba(20, 20, 15, 0.55)",
-        zIndex: 9998,
-        pointerEvents: "none",
-        transition
+  const ringTransition = reducedMotion ? "none" : `top ${duration}ms ease, left ${duration}ms ease, width ${duration}ms ease, height ${duration}ms ease`;
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsx("div", { ref: topRef, style: { position: "fixed", background: DIM, zIndex: 1e5 } }),
+    /* @__PURE__ */ jsx("div", { ref: bottomRef, style: { position: "fixed", background: DIM, zIndex: 1e5 } }),
+    /* @__PURE__ */ jsx("div", { ref: leftRef, style: { position: "fixed", background: DIM, zIndex: 1e5 } }),
+    /* @__PURE__ */ jsx("div", { ref: rightRef, style: { position: "fixed", background: DIM, zIndex: 1e5 } }),
+    /* @__PURE__ */ jsx(
+      "div",
+      {
+        ref: ringRef,
+        style: {
+          position: "fixed",
+          borderRadius: radius,
+          boxShadow: "0 0 0 2px rgba(255,255,255,0.55), 0 0 24px rgba(255,255,255,0.25)",
+          zIndex: 1e5,
+          pointerEvents: "none",
+          transition: ringTransition
+        }
       }
-    }
-  );
+    )
+  ] });
 }
 
 // onboarding/core/ensureVisible.js
@@ -469,9 +685,7 @@ function ensureVisible(el, opts = {}) {
       resolve();
       return;
     }
-    const rect = el.getBoundingClientRect();
-    const fits = rect.top >= 0 && rect.bottom <= window.innerHeight && rect.left >= 0 && rect.right <= window.innerWidth;
-    if (fits) {
+    if (isActuallyVisible(el)) {
       resolve();
       return;
     }
@@ -481,96 +695,160 @@ function ensureVisible(el, opts = {}) {
 }
 
 // onboarding/ui/placement.js
-var GAP = 14;
+var GAP = 12;
 var EDGE_MARGIN = 8;
-function clamp(value, size, max) {
-  return Math.min(Math.max(EDGE_MARGIN, value), Math.max(EDGE_MARGIN, max - size - EDGE_MARGIN));
+var NARROW_SCREEN_MAX = 480;
+function clampWithin(value, size, min, max) {
+  return Math.min(Math.max(min, value), Math.max(min, max - size));
 }
-function computePlacement(targetRect, cardSize, requested) {
-  const vw = window.innerWidth, vh = window.innerHeight;
-  if (!targetRect) {
-    return { placement: "center", top: vh / 2 - cardSize.height / 2, left: vw / 2 - cardSize.width / 2 };
+function rectsOverlap(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+function computePlacement(rect, cardSize, requested, viewport, insets) {
+  const vw = viewport ? viewport.width : typeof window !== "undefined" ? window.innerWidth : 0;
+  const vh = viewport ? viewport.height : typeof window !== "undefined" ? window.innerHeight : 0;
+  const safeTop = insets && insets.top || 0;
+  const safeBottom = insets && insets.bottom || 0;
+  const minY = EDGE_MARGIN + safeTop;
+  const maxY = vh - safeBottom - EDGE_MARGIN;
+  const minX = EDGE_MARGIN;
+  const maxX = vw - EDGE_MARGIN;
+  if (!rect) {
+    return { placement: "center", top: clampWithin(vh / 2 - cardSize.height / 2, cardSize.height, minY, maxY), left: clampWithin(vw / 2 - cardSize.width / 2, cardSize.width, minX, maxX) };
   }
+  const isNarrow = vw <= NARROW_SCREEN_MAX;
   let placement = requested;
   if (!placement || placement === "auto") {
     const space = {
-      top: targetRect.top,
-      bottom: vh - targetRect.bottom,
-      left: targetRect.left,
-      right: vw - targetRect.right
+      top: rect.top - safeTop,
+      bottom: vh - safeBottom - rect.bottom,
+      ...isNarrow ? {} : { left: rect.left, right: vw - rect.right }
     };
     placement = Object.entries(space).sort((a, b) => b[1] - a[1])[0][0];
+  } else if (isNarrow && (placement === "left" || placement === "right")) {
+    placement = rect.top - safeTop > vh - safeBottom - rect.bottom ? "top" : "bottom";
   }
   let top, left;
   if (placement === "bottom") {
-    top = targetRect.bottom + GAP;
-    left = clamp(targetRect.left + targetRect.width / 2 - cardSize.width / 2, cardSize.width, vw);
+    top = rect.bottom + GAP;
+    left = clampWithin(rect.left + rect.width / 2 - cardSize.width / 2, cardSize.width, minX, maxX);
   } else if (placement === "top") {
-    top = targetRect.top - cardSize.height - GAP;
-    left = clamp(targetRect.left + targetRect.width / 2 - cardSize.width / 2, cardSize.width, vw);
+    top = rect.top - cardSize.height - GAP;
+    left = clampWithin(rect.left + rect.width / 2 - cardSize.width / 2, cardSize.width, minX, maxX);
   } else if (placement === "left") {
-    left = targetRect.left - cardSize.width - GAP;
-    top = clamp(targetRect.top + targetRect.height / 2 - cardSize.height / 2, cardSize.height, vh);
+    left = rect.left - cardSize.width - GAP;
+    top = clampWithin(rect.top + rect.height / 2 - cardSize.height / 2, cardSize.height, minY, maxY);
   } else if (placement === "right") {
-    left = targetRect.right + GAP;
-    top = clamp(targetRect.top + targetRect.height / 2 - cardSize.height / 2, cardSize.height, vh);
+    left = rect.right + GAP;
+    top = clampWithin(rect.top + rect.height / 2 - cardSize.height / 2, cardSize.height, minY, maxY);
   } else {
     top = vh / 2 - cardSize.height / 2;
     left = vw / 2 - cardSize.width / 2;
   }
-  top = clamp(top, cardSize.height, vh);
-  left = clamp(left, cardSize.width, vw);
+  top = clampWithin(top, cardSize.height, minY, maxY);
+  left = clampWithin(left, cardSize.width, minX, maxX);
+  const cardBox = { top, bottom: top + cardSize.height, left, right: left + cardSize.width };
+  if (rectsOverlap(cardBox, { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right })) {
+    const spaceAbove = rect.top - safeTop;
+    const spaceBelow = vh - safeBottom - rect.bottom;
+    if (spaceAbove >= cardSize.height || spaceAbove >= spaceBelow) {
+      top = Math.max(safeTop + EDGE_MARGIN, rect.top - cardSize.height - GAP);
+    } else {
+      top = Math.min(vh - safeBottom - cardSize.height - EDGE_MARGIN, rect.bottom + GAP);
+    }
+  }
   return { placement, top, left };
 }
 
+// onboarding/core/safeInsets.js
+var MAX_INSET = 90;
+function getSafeInsets() {
+  let top = 0;
+  let bottom = 0;
+  const candidates = document.querySelectorAll("body *");
+  for (const el of candidates) {
+    const style = window.getComputedStyle(el);
+    if (style.position !== "fixed" && style.position !== "sticky") continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 40 || rect.height < 1 || rect.height > MAX_INSET) continue;
+    if (Math.abs(rect.top) <= 2 && rect.width >= window.innerWidth * 0.5) {
+      top = Math.max(top, rect.height);
+    }
+    if (Math.abs(window.innerHeight - rect.bottom) <= 2 && rect.width >= window.innerWidth * 0.5) {
+      bottom = Math.max(bottom, rect.height);
+    }
+  }
+  return { top: Math.min(top, MAX_INSET), bottom: Math.min(bottom, MAX_INSET) };
+}
+
 // onboarding/ui/Overlay.js
-import { Fragment, jsx as jsx2, jsxs } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 var cardStyle = (top, left, visible, reducedMotion) => ({
   position: "fixed",
   top,
   left,
-  maxWidth: 320,
+  width: "min(320px, calc(100vw - 24px))",
+  boxSizing: "border-box",
   background: "var(--surface)",
   color: "var(--ink)",
   border: "1px solid var(--border)",
   borderRadius: 14,
-  padding: 18,
+  padding: 16,
   boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
-  zIndex: 9999,
+  zIndex: 100001,
   fontFamily: "'Inter', sans-serif",
   opacity: visible ? 1 : 0,
   transition: reducedMotion ? "none" : "opacity 200ms ease, top 300ms ease, left 300ms ease"
 });
-var primaryBtnStyle = { background: "var(--sage-fill)", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Inter', sans-serif" };
-var skipBtnStyle = { background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" };
-var closeBtnStyle = { background: "none", border: "1px solid var(--border)", borderRadius: 7, color: "var(--muted)", fontSize: 15, cursor: "pointer", lineHeight: 1, width: 26, height: 26, fontFamily: "'Inter', sans-serif" };
+var primaryBtnStyle = { background: "var(--sage-fill)", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "11px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Inter', sans-serif", minHeight: 40 };
+var skipBtnStyle = { background: "none", border: "none", color: "var(--muted)", fontSize: 14, cursor: "pointer", fontFamily: "'Inter', sans-serif", padding: "11px 6px", minHeight: 40 };
+var closeBtnStyle = { background: "none", border: "1px solid var(--border)", borderRadius: 8, color: "var(--muted)", fontSize: 16, cursor: "pointer", lineHeight: 1, width: 34, height: 34, flexShrink: 0, fontFamily: "'Inter', sans-serif" };
 function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
   const translate = typeof t === "function" ? t : (s) => s;
   const [state, setState] = useState(() => engine.getState());
   const [rect, setRect] = useState(null);
+  const rectForStepRef = useRef2(null);
+  const insufficientlyVisibleRef = useRef2(false);
   const [cardSize, setCardSize] = useState({ width: 320, height: 140 });
-  const measuredForStepRef = useRef(null);
-  const cardRef = useRef(null);
+  const measuredForStepRef = useRef2(null);
+  const cardRef = useRef2(null);
   const reducedMotion = prefersReducedMotion();
-  useEffect(() => engine.subscribe(setState), [engine]);
+  useEffect2(() => engine.subscribe(setState), [engine]);
   const active = state.active;
   const scenario = active ? getScenario2(active.scenarioId) : null;
   const step = scenario ? scenario.steps.find((s) => s.id === active.stepId) : null;
-  const recomputeRect = useCallback(() => {
+  const recomputeRect = useCallback2(() => {
     if (!step || !step.target) {
+      rectForStepRef.current = step ? step.id : null;
       setRect(null);
       return;
     }
-    const el = document.querySelector(step.target);
-    setRect(el ? el.getBoundingClientRect() : null);
+    const el = findVisibleTarget(step.target);
+    if (!el) {
+      rectForStepRef.current = step.id;
+      setRect(null);
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    const vv2 = window.visualViewport;
+    const ox = vv2 ? vv2.offsetLeft : 0, oy = vv2 ? vv2.offsetTop : 0;
+    insufficientlyVisibleRef.current = !isActuallyVisible(el);
+    rectForStepRef.current = step.id;
+    setRect({ top: r.top - oy, bottom: r.bottom - oy, left: r.left - ox, right: r.right - ox, width: r.width, height: r.height });
   }, [step]);
-  useEffect(() => {
+  useEffect2(() => {
+    if (rectForStepRef.current !== (step && step.id)) {
+      rectForStepRef.current = step ? "__pending__" : null;
+      setRect(null);
+    }
+  }, [step]);
+  useEffect2(() => {
     if (!step) return;
     let cancelled = false;
     (async () => {
       if (step.target) {
-        const el = document.querySelector(step.target);
+        const el = findVisibleTarget(step.target);
         await ensureVisible(el, { reducedMotion });
       }
       if (!cancelled) recomputeRect();
@@ -579,7 +857,7 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
       cancelled = true;
     };
   }, [step, recomputeRect, reducedMotion]);
-  useEffect(() => {
+  useEffect2(() => {
     if (!step) return;
     let raf = null;
     const scheduleRecompute = () => {
@@ -591,13 +869,22 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
     };
     window.addEventListener("resize", scheduleRecompute);
     window.addEventListener("scroll", scheduleRecompute, true);
+    const vv2 = window.visualViewport;
+    if (vv2) {
+      vv2.addEventListener("resize", scheduleRecompute);
+      vv2.addEventListener("scroll", scheduleRecompute);
+    }
     return () => {
       window.removeEventListener("resize", scheduleRecompute);
       window.removeEventListener("scroll", scheduleRecompute, true);
+      if (vv2) {
+        vv2.removeEventListener("resize", scheduleRecompute);
+        vv2.removeEventListener("scroll", scheduleRecompute);
+      }
       if (raf) cancelAnimationFrame(raf);
     };
   }, [step, recomputeRect]);
-  useEffect(() => {
+  useEffect2(() => {
     if (!step || !cardRef.current) return;
     const r = cardRef.current.getBoundingClientRect();
     if (r.width && r.height) {
@@ -608,7 +895,7 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
       }
     }
   });
-  useEffect(() => {
+  useEffect2(() => {
     if (!step) return;
     const raf = requestAnimationFrame(() => {
       if (cardRef.current) cardRef.current.focus();
@@ -639,22 +926,29 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
   }, [step, engine]);
   if (!step || state.paused) return null;
   const spotlightCfg = step.spotlight || {};
-  const placement = computePlacement(rect, cardSize, step.placement);
-  const waitingOnTarget = !!step.target && rect === null;
+  const vv = typeof window !== "undefined" ? window.visualViewport : null;
+  const viewport = vv ? { width: vv.width, height: vv.height } : { width: window.innerWidth, height: window.innerHeight };
+  const insets = getSafeInsets();
+  const placement = computePlacement(rect, cardSize, step.placement, viewport, insets);
+  const waitingOnTarget = !!step.target && (rect === null || rectForStepRef.current !== step.id || insufficientlyVisibleRef.current);
   const notYetMeasured = measuredForStepRef.current !== step.id;
   const showPrimaryAction = step.completeWhen && step.completeWhen.type !== "event";
-  return /* @__PURE__ */ jsxs(Fragment, { children: [
+  return /* @__PURE__ */ jsxs2(Fragment2, { children: [
     /* @__PURE__ */ jsx2(
       Spotlight,
       {
         rect,
+        targetSelector: step.target,
+        hasTarget: !!step.target,
         padding: spotlightCfg.padding ?? 8,
         radius: spotlightCfg.radius ?? 12,
         duration: reducedMotion ? 0 : spotlightCfg.duration ?? 300,
-        reducedMotion
+        reducedMotion,
+        viewport,
+        insets
       }
     ),
-    /* @__PURE__ */ jsxs(
+    /* @__PURE__ */ jsxs2(
       "div",
       {
         ref: cardRef,
@@ -666,7 +960,7 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
         children: [
           /* @__PURE__ */ jsx2("h3", { id: "gb-onboarding-title", style: { margin: "0 0 6px", fontSize: 15, fontWeight: 700 }, children: translate(step.title) }),
           /* @__PURE__ */ jsx2("p", { id: "gb-onboarding-desc", style: { margin: "0 0 14px", fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }, children: translate(step.description) }),
-          /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }, children: [
+          /* @__PURE__ */ jsxs2("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }, children: [
             step.optional && /* @__PURE__ */ jsx2("button", { type: "button", onClick: () => engine.skip(active.scenarioId, step.id), style: skipBtnStyle, children: translate("onboarding_skip") }),
             showPrimaryAction && /* @__PURE__ */ jsx2("button", { type: "button", autoFocus: true, onClick: () => engine.advance(active.scenarioId, step.id), style: primaryBtnStyle, children: translate(step.actionLabel || "onboarding_got_it") }),
             /* @__PURE__ */ jsx2("button", { type: "button", onClick: () => engine.pause(), "aria-label": translate("onboarding_close"), style: closeBtnStyle, children: "\xD7" })
@@ -679,11 +973,11 @@ function OnboardingOverlay({ engine, getScenario: getScenario2, t }) {
 
 // onboarding/ui/DemoPrompt.js
 import React3 from "react";
-import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 var overlayStyle = {
   position: "fixed",
   inset: 0,
-  zIndex: 9999,
+  zIndex: 100001,
   background: "rgba(20, 20, 15, 0.55)",
   display: "flex",
   alignItems: "center",
@@ -717,14 +1011,14 @@ var optionTitleStyle = { fontSize: 14, fontWeight: 700, marginBottom: 3 };
 var optionDescStyle = { fontSize: 12, color: "var(--muted)" };
 function DemoPrompt({ onChoice, t }) {
   const translate = typeof t === "function" ? t : (s) => s;
-  return /* @__PURE__ */ jsx3("div", { style: overlayStyle, role: "dialog", "aria-labelledby": "gb-demo-title", children: /* @__PURE__ */ jsxs2("div", { style: demoCardStyle, children: [
+  return /* @__PURE__ */ jsx3("div", { style: overlayStyle, role: "dialog", "aria-labelledby": "gb-demo-title", children: /* @__PURE__ */ jsxs3("div", { style: demoCardStyle, children: [
     /* @__PURE__ */ jsx3("h2", { id: "gb-demo-title", style: { margin: "0 0 6px", fontSize: 18, fontWeight: 700 }, children: translate("onboarding_demo_title") }),
     /* @__PURE__ */ jsx3("p", { style: { margin: "0 0 4px", fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }, children: translate("onboarding_demo_subtitle") }),
-    /* @__PURE__ */ jsxs2("button", { type: "button", style: optionStyle, onClick: () => onChoice("empty"), children: [
+    /* @__PURE__ */ jsxs3("button", { type: "button", style: optionStyle, onClick: () => onChoice("empty"), children: [
       /* @__PURE__ */ jsx3("div", { style: optionTitleStyle, children: translate("onboarding_demo_empty_title") }),
       /* @__PURE__ */ jsx3("div", { style: optionDescStyle, children: translate("onboarding_demo_empty_desc") })
     ] }),
-    /* @__PURE__ */ jsxs2("button", { type: "button", style: optionStyle, onClick: () => onChoice("demo"), children: [
+    /* @__PURE__ */ jsxs3("button", { type: "button", style: optionStyle, onClick: () => onChoice("demo"), children: [
       /* @__PURE__ */ jsx3("div", { style: optionTitleStyle, children: translate("onboarding_demo_seed_title") }),
       /* @__PURE__ */ jsx3("div", { style: optionDescStyle, children: translate("onboarding_demo_seed_desc") })
     ] })
@@ -732,15 +1026,15 @@ function DemoPrompt({ onChoice, t }) {
 }
 
 // onboarding/ui/DevPanel.js
-import React4, { useState as useState2, useEffect as useEffect2 } from "react";
-import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+import React4, { useState as useState2, useEffect as useEffect3 } from "react";
+import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var panelStyle = {
   position: "fixed",
   top: 0,
   right: 0,
   bottom: 0,
-  width: 340,
-  zIndex: 1e4,
+  width: "min(340px, 100vw)",
+  zIndex: 100002,
   background: "var(--surface)",
   color: "var(--ink)",
   borderLeft: "1px solid var(--border)",
@@ -758,31 +1052,31 @@ var pre = { background: "var(--surface2)", borderRadius: 8, padding: 10, fontSiz
 function DevPanel({ api, bus }) {
   const [open, setOpen] = useState2(false);
   const [, forceTick] = useState2(0);
-  useEffect2(() => bus.on("__dev_panel_toggle", (payload) => {
+  useEffect3(() => bus.on("__dev_panel_toggle", (payload) => {
     if (payload && payload.force === "open") setOpen(true);
     else if (payload && payload.force === "close") setOpen(false);
     else setOpen((v) => !v);
   }), [bus]);
-  useEffect2(() => {
+  useEffect3(() => {
     if (!open) return;
     const id = setInterval(() => forceTick((n) => n + 1), 500);
     return () => clearInterval(id);
   }, [open]);
   if (!open) return null;
   const state = api.getState();
-  return /* @__PURE__ */ jsxs3("div", { style: panelStyle, children: [
-    /* @__PURE__ */ jsxs3("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
+  return /* @__PURE__ */ jsxs4("div", { style: panelStyle, children: [
+    /* @__PURE__ */ jsxs4("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
       /* @__PURE__ */ jsx4("b", { style: { fontSize: 13 }, children: "Onboarding Dev Panel" }),
       /* @__PURE__ */ jsx4("button", { type: "button", style: btnStyle, onClick: () => setOpen(false), children: "\xD7" })
     ] }),
     /* @__PURE__ */ jsx4("div", { style: sectionTitle, children: "\u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0439 \u0448\u0430\u0433" }),
     /* @__PURE__ */ jsx4("div", { children: state.active ? `${state.active.scenarioId} \u2192 ${state.active.stepId}` : "\u2014" }),
     /* @__PURE__ */ jsx4("div", { style: sectionTitle, children: "\u0421\u0446\u0435\u043D\u0430\u0440\u0438\u0438" }),
-    state.registeredScenarios.map((s) => /* @__PURE__ */ jsxs3("div", { style: rowStyle, children: [
-      /* @__PURE__ */ jsxs3("span", { children: [
+    state.registeredScenarios.map((s) => /* @__PURE__ */ jsxs4("div", { style: rowStyle, children: [
+      /* @__PURE__ */ jsxs4("span", { children: [
         s.id,
         " ",
-        /* @__PURE__ */ jsxs3("span", { style: { color: "var(--muted)" }, children: [
+        /* @__PURE__ */ jsxs4("span", { style: { color: "var(--muted)" }, children: [
           "v",
           s.version,
           " \xB7 ",
@@ -790,7 +1084,7 @@ function DevPanel({ api, bus }) {
           " \u0448\u0430\u0433(\u043E\u0432)"
         ] })
       ] }),
-      /* @__PURE__ */ jsxs3("span", { style: { display: "flex", gap: 4 }, children: [
+      /* @__PURE__ */ jsxs4("span", { style: { display: "flex", gap: 4 }, children: [
         /* @__PURE__ */ jsx4("button", { type: "button", style: btnStyle, onClick: () => api.start(s.id, { force: true }), children: "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C" }),
         /* @__PURE__ */ jsx4("button", { type: "button", style: dangerBtnStyle, onClick: () => api.reset(s.id), children: "\u0421\u0431\u0440\u043E\u0441" })
       ] })

@@ -48,6 +48,7 @@
   window.__kopiqoBus = window.__kopiqoBus || (function () {
     const listeners = new Map();
     const queue = [];
+    const MAX_REPLAY_AGE_MS = 2000;
     return {
       emit(type, payload) {
         const set = listeners.get(type);
@@ -57,7 +58,14 @@
       on(type, fn) {
         if (!listeners.has(type)) listeners.set(type, new Set());
         listeners.get(type).add(fn);
-        for (let i = queue.length - 1; i >= 0; i--) if (queue[i].type === type) { fn(queue[i].payload); queue.splice(i, 1); }
+        const now = Date.now();
+        for (let i = queue.length - 1; i >= 0; i--) {
+          if (queue[i].type === type) {
+            const entry = queue[i];
+            queue.splice(i, 1);
+            if (now - entry.at <= MAX_REPLAY_AGE_MS) fn(entry.payload);
+          }
+        }
         return () => { const s = listeners.get(type); if (s) s.delete(fn); };
       },
     };

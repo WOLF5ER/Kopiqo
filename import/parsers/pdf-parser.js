@@ -1,28 +1,28 @@
 // ============================================================================
-// parsers/pdf-parser — extracts transaction-like rows from a TEXT-based PDF
-// bank statement. Deliberately does not use OCR: a PDF that's actually a
-// scanned image (no extractable text layer) is detected and rejected with a
-// clear reason rather than silently returning nothing.
+// parsers/pdf-parser — extracts a flat, reading-order text stream from a
+// TEXT-based PDF bank statement using pdfjs-dist. Deliberately does not use
+// OCR: a PDF that's actually a scanned image (no extractable text layer) is
+// detected and rejected with a clear reason rather than silently returning
+// nothing.
 //
-// PDF.js gives back a flat list of positioned text fragments per page, not
-// a table — there's no structural "this is column 2" information to read.
-// Rather than clustering fragments by x-position into rigid columns (which
-// breaks the moment two statements from the same bank lay out slightly
-// differently, e.g. a name that pushes a column wider), this reconstructs
-// visual lines from y-position, then scans each line for a date-shaped
-// token and an amount-shaped token — whatever text is left on the line
-// becomes the description. That's the same "find the two things we
-// recognize, the rest is the label" approach real-world statement parsers
-// tend to converge on, and it tolerates column drift a lot better.
+// This module only produces TEXT — it has no opinion about how a
+// particular bank lays out its rows (some wrap date+time across two visual
+// lines within one cell, some don't; some repeat the amount twice, some
+// don't). That reconstruction is bank-specific and lives in each bank
+// adapter's own extractPdfRows(), which importer.js calls after detecting
+// which bank produced the statement. Banks without their own PDF adapter
+// fall back to a generic single-line heuristic (also bank-agnostic) also
+// defined here, as DEFAULT_ROW_EXTRACTOR.
 // ============================================================================
 
+const Y_LINE_TOLERANCE = 2.5; // pt — text items within this of each other count as the same visual line
 const DATE_TOKEN_RE = /\b\d{1,2}[.\/]\d{1,2}[.\/]\d{4}\b/g;
 const AMOUNT_TOKEN_RE = /[-+]?\d[\d\s\u00a0']*[.,]\d{2}\b/g;
-const Y_LINE_TOLERANCE = 2.5; // pt — text items within this of each other count as the same visual line
 
 /**
  * Groups a page's positioned text items into visual lines (by y-position),
- * each line's items already sorted left-to-right.
+ * each line's items already sorted left-to-right, and returns them
+ * top-to-bottom.
  */
 function groupIntoLines(items) {
   const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x); // top-to-bottom, then left-to-right
@@ -37,42 +37,43 @@ function groupIntoLines(items) {
 }
 
 /**
- * Pulls a date token, an amount token, and treats the rest as the
- * description — from one already-assembled line of text.
- * @returns {{date: string, amount: string, description: string} | null}
+ * Generic single-line fallback for banks without their own PDF row
+ * extractor: finds a date token and an amount token on the SAME visual
+ * line, treating whatever's left as the description. Works for simpler
+ * statement layouts where a whole transaction fits on one line; banks that
+ * wrap a row across several lines (see banks/tinkoff.js for an example of
+ * handling that) need their own extractPdfRows().
+ * @param {string} flatText - the full document text, lines joined by \n
+ * @returns {Array<{date: string, description: string, amount: string}>}
  */
-function extractRowFromLine(text) {
-  const dateMatches = [...text.matchAll(DATE_TOKEN_RE)];
-  if (dateMatches.length === 0) return null;
-  const firstDate = dateMatches[0][0];
+export function defaultRowExtractor(flatText) {
+  const rows = [];
+  for (const lineText of flatText.split("\n")) {
+    const dateMatches = [...lineText.matchAll(DATE_TOKEN_RE)];
+    if (dateMatches.length === 0) continue;
+    const firstDate = dateMatches[0][0];
 
-  // Strip EVERY date-shaped token before hunting for amounts — a date like
-  // 17.07.2026 contains a substring (17.07) that would otherwise itself
-  // satisfy the amount pattern below.
-  const withoutDates = text.replace(DATE_TOKEN_RE, " ");
+    const withoutDates = lineText.replace(DATE_TOKEN_RE, " ");
+    const amountMatches = [...withoutDates.matchAll(AMOUNT_TOKEN_RE)];
+    if (amountMatches.length === 0) continue;
+    const signed = amountMatches.filter((m) => m[0][0] === "-" || m[0][0] === "+");
+    const amountMatch = signed.length > 0 ? signed[0] : amountMatches[0];
 
-  const amountMatches = [...withoutDates.matchAll(AMOUNT_TOKEN_RE)];
-  if (amountMatches.length === 0) return null;
-  // Prefer an explicitly signed number (the transaction amount, in most RU
-  // bank PDF layouts) over an unsigned one (usually a running balance sitting
-  // right next to it). With several signed candidates, take the first —
-  // balance columns come after the amount column in reading order.
-  const signed = amountMatches.filter((m) => m[0][0] === "-" || m[0][0] === "+");
-  const amountMatch = signed.length > 0 ? signed[0] : amountMatches[0];
-
-  const description = withoutDates.slice(0, amountMatch.index).replace(/\s{2,}/g, " ").trim();
-  if (!description) return null;
-  return { date: firstDate, amount: amountMatch[0], description };
+    const description = withoutDates.slice(0, amountMatch.index).replace(/\s{2,}/g, " ").trim();
+    if (!description) continue;
+    rows.push({ date: firstDate, amount: amountMatch[0], description });
+  }
+  return rows;
 }
 
 /**
  * @param {ArrayBuffer} arrayBuffer
  * @returns {Promise<
- *   { ok: true, rows: Array<{date: string, description: string, amount: string}>, fullText: string } |
+ *   { ok: true, flatText: string } |
  *   { ok: false, reason: "no_text_layer" | "parse_failed" }
  * >}
  */
-export async function parsePDF(arrayBuffer) {
+export async function extractPdfText(arrayBuffer) {
   let pdfjsLib;
   try {
     pdfjsLib = await import("pdfjs-dist");
@@ -89,8 +90,7 @@ export async function parsePDF(arrayBuffer) {
   }
 
   let totalChars = 0;
-  const allRows = [];
-  const textChunks = [];
+  const lineTexts = [];
 
   try {
     for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
@@ -103,10 +103,7 @@ export async function parsePDF(arrayBuffer) {
 
       const lines = groupIntoLines(items);
       for (const line of lines) {
-        const lineText = line.items.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim();
-        textChunks.push(lineText);
-        const row = extractRowFromLine(lineText);
-        if (row) allRows.push(row);
+        lineTexts.push(line.items.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim());
       }
     }
   } catch (e) {
@@ -120,5 +117,5 @@ export async function parsePDF(arrayBuffer) {
     return { ok: false, reason: "no_text_layer" };
   }
 
-  return { ok: true, rows: allRows, fullText: textChunks.join("\n") };
+  return { ok: true, flatText: lineTexts.join("\n") };
 }

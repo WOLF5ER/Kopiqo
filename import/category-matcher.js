@@ -22,6 +22,13 @@ const RULES = [
       "столовая", "кофейня", "starbucks", "mcdonald", "kfc", "burger",
       "бристоль", "красное белое", "додо", "dodo pizza", "papa john",
       "суши", "sushi", "шаурма", "кофе", "coffee", "пекарня", "булочная",
+      // Latin transliterations seen in real PDF exports (T-Bank spells
+      // many Russian merchants in Latin script there, unlike its CSV
+      // export which keeps them in Cyrillic).
+      "pyaterochka", "bristol", "komandor", "pekarnya", "khoroshi",
+      "khoroshij", "ekonomiya", "frukty", "kdv roznitsa", "vkusnoitochka",
+      "magazin sibiryak", "gm vegos", "dary prirody", "produkty",
+      "krasnoe beloe", "kolbasnyy",
     ],
   },
   {
@@ -33,6 +40,7 @@ const RULES = [
       "шелл", "shell", "лукойл", "gazprom", "азс", "роснефть", "rosneft",
       "татнефть", "bp", "parking", "паркинг", "автомойка", "шиномонтаж",
       "каршеринг", "delimobil", "яндекс драйв", "belka car",
+      "azs", "avtomoika", "taximaxim", "taxipoehali", "sto ", "kraisneft",
     ],
   },
   {
@@ -42,6 +50,8 @@ const RULES = [
       "netflix", "spotify", "ivi", "kinopoisk", "кинопоиск", "театр",
       "концерт", "twitch", "youtube premium", "epic games", "wink",
       "okko", "premier", "боулинг", "квест", "парк развлечений",
+      "xsolla", "games.qiwi", "playerok", "topskin", "funpay", "lisskins",
+      "cybershoke",
     ],
   },
   {
@@ -51,6 +61,8 @@ const RULES = [
       "спортмастер", "detmir", "детский мир", "мвидео", "м.видео", "dns",
       "amazon", "яндекс маркет", "летуаль", "l'etoile", "золотое яблоко",
       "иль де ботэ", "streetbeat", "sunlight", "ювелир", "цветы", "flowers",
+      "yula", "золотой", "sokolov", "firebox", "vital plyus", "nicotine",
+      "veyp",
     ],
   },
   {
@@ -60,6 +72,7 @@ const RULES = [
       "dentist", "больница", "hospital", "инвитро", "гемотест", "здравсити",
       "ригла", "асна", "planeta zdorovia", "оптика", "фитнес", "fitness",
       "спортзал", "gym", "world class", "барбершоп", "парикмахер",
+      "pharmgarant", "deshyovaya apteka", "farmaciya", "stomatologiya",
     ],
   },
   {
@@ -68,6 +81,7 @@ const RULES = [
       "жкх", "коммунальные", "квартплата", "электроэнергия", "мосэнерго",
       "водоканал", "интернет провайдер", "ростелеком", "мтс домашний",
       "rent", "аренда квартиры", "мегафон", "билайн", "теле2", "yota",
+      "mbank.tmobile", "mbank.beeline", "mbank.t2", "ibank.rostelecom",
     ],
   },
 ];
@@ -101,6 +115,14 @@ const SELF_TRANSFER_PATTERNS = [
   /пополнение\s+своего\s+счета/i,
   /own\s+account/i,
   /internal\s+transfer/i,
+  // Т-Банк's own wording for moving money to/from the user's own linked
+  // savings account ("договор" here means the user's own deposit/savings
+  // agreement, not a payment to another party) — confirmed from a real
+  // statement. Note: [а-яё]*, not \w* — \w in JS regex only matches
+  // [A-Za-z0-9_], never Cyrillic letters, so \w* here would silently match
+  // nothing after the first few Latin-range characters.
+  /внутренн[а-яё]*\s+перевод\s+на\s+договор/i,
+  /внутрибанковск[а-яё]*\s+перевод\s+с\s+договора/i,
 ];
 
 /**

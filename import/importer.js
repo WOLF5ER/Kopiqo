@@ -11,7 +11,7 @@
 
 import { parseCSV } from "./parsers/csv-parser.js";
 import { parseXLSX } from "./parsers/xlsx-parser.js";
-import { parsePDF } from "./parsers/pdf-parser.js";
+import { extractPdfText, defaultRowExtractor } from "./parsers/pdf-parser.js";
 import { detectBank, detectBankFromText } from "./detector.js";
 import { normalizeRow } from "./normalizer.js";
 import { isDuplicateAgainst } from "./duplicate-checker.js";
@@ -43,11 +43,14 @@ async function readTabularFile(file, isXlsx) {
  * Reads a PDF file into { rows: [{date, description, amount}], bank }.
  */
 async function readPdfFile(file) {
-  const result = await parsePDF(await file.arrayBuffer());
+  const result = await extractPdfText(await file.arrayBuffer());
   if (!result.ok) return result;
-  if (result.rows.length === 0) return { ok: false, reason: "no_operations_found" };
-  const bank = detectBankFromText(result.fullText);
-  return { ok: true, rawRows: result.rows, bank };
+
+  const bank = detectBankFromText(result.flatText);
+  const rawRows = bank.extractPdfRows ? bank.extractPdfRows(result.flatText) : defaultRowExtractor(result.flatText);
+  if (rawRows.length === 0) return { ok: false, reason: "no_operations_found" };
+
+  return { ok: true, rawRows, bank };
 }
 
 /**

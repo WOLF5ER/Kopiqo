@@ -22,6 +22,53 @@ function normalize(header) {
   return String(header).trim().toLowerCase().replace(/ё/g, "е");
 }
 
+// PDF row reconstruction — confirmed against a real "Справка о движении
+// средств" export. Each row's date and time wrap across separate visual
+// lines within the same table cell ("19.07.2026" then "08:37" on the next
+// line), so a plain single-line date+amount search (the generic fallback
+// in parsers/pdf-parser.js) never finds anything. Т-Банк repeats the date
+// and time twice per row (operation date/time, then processing date/time)
+// — that four-token sequence is a reliable anchor marking where each row
+// starts, regardless of how the description text wraps around it.
+const ROW_ANCHOR_RE = /(\d{2}\.\d{2}\.\d{4})\s+(\d{2}:\d{2})\s+(\d{2}\.\d{2}\.\d{4})\s+(\d{2}:\d{2})/g;
+const AMOUNT_RE = /[-+]\d[\d\s\u00a0']*[.,]\d{2}/;
+
+/**
+ * @param {string} flatText - full document text (extractPdfText's flatText)
+ * @returns {Array<{date: string, description: string, amount: string}>}
+ */
+export function extractPdfRows(flatText) {
+  const flat = flatText.replace(/\s+/g, " ").trim();
+  const anchors = [...flat.matchAll(ROW_ANCHOR_RE)];
+  const rows = [];
+
+  for (let i = 0; i < anchors.length; i++) {
+    const start = anchors[i].index + anchors[i][0].length;
+    const end = i + 1 < anchors.length ? anchors[i + 1].index : flat.length;
+    const chunk = flat.slice(start, end).trim();
+
+    const amountMatch = chunk.match(AMOUNT_RE);
+    if (!amountMatch) continue;
+
+    // The amount appears twice (operation currency, then card currency —
+    // the same value on a ruble-only statement); the description is
+    // whatever's left after both, with the currency sign and the trailing
+    // 4-digit card number stripped.
+    const afterFirst = chunk.slice(amountMatch.index + amountMatch[0].length);
+    const secondMatch = afterFirst.match(AMOUNT_RE);
+    let description = secondMatch ? afterFirst.slice(secondMatch.index + secondMatch[0].length) : afterFirst;
+    description = description
+      .replace(/\u20bd/g, " ")
+      .replace(/\s*\d{4}\s*$/, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!description) continue;
+    rows.push({ date: anchors[i][1], amount: amountMatch[0], description });
+  }
+  return rows;
+}
+
 const FINGERPRINT_TEXT = [/т-банк/i, /тинькофф/i, /tinkoff/i];
 
 /**

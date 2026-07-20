@@ -40,6 +40,7 @@ import {
   UserRound,
   Camera,
   Settings,
+  UploadCloud,
   Plane,
   Dumbbell,
   Baby,
@@ -328,8 +329,15 @@ function themeClassName(theme) {
   if (!theme || theme === "light") return "";
   return `gb-${theme.replace(/_/g, "-")}`;
 }
-const APP_VERSION = "7.15";
+const APP_VERSION = "8.0";
 const CHANGELOG = [
+  {
+    version: "8.0",
+    date: "20.07.2026",
+    greeting: "changelog_8_0_greeting",
+    items: ["changelog_8_0_1", "changelog_8_0_2", "changelog_8_0_3"],
+    thanks: "changelog_8_0_thanks"
+  },
   {
     version: "7.15",
     date: "19.07.2026",
@@ -580,6 +588,28 @@ const I18N = {
   savings_hint: { ru: "\u0414\u043E\u043B\u044F \u0434\u043E\u0445\u043E\u0434\u0430, \u043A\u043E\u0442\u043E\u0440\u0430\u044F \u043E\u0441\u0442\u0430\u043B\u0430\u0441\u044C \u043D\u0435\u0441\u0432\u0435\u0434\u0451\u043D\u043D\u043E\u0439 \u0432 \u0440\u0430\u0441\u0445\u043E\u0434 \u0437\u0430 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0439 \u043F\u0435\u0440\u0438\u043E\u0434.", en: "Share of income left over after expenses for the selected period.", zh: "\u6240\u9009\u671F\u95F4\u5185\u6536\u5165\u4E2D\u672A\u7528\u4E8E\u652F\u51FA\u7684\u6BD4\u4F8B\u3002" },
   transactions_title: { ru: "\u041E\u043F\u0435\u0440\u0430\u0446\u0438\u0438", en: "Transactions", zh: "\u4EA4\u6613" },
   add_transaction_btn: { ru: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u044E", en: "Add transaction", zh: "\u6DFB\u52A0\u4EA4\u6613" },
+  import_operations_btn: { ru: "\u0418\u043C\u043F\u043E\u0440\u0442 \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0439", en: "Import transactions", zh: "\u5BFC\u5165\u4EA4\u6613" },
+  import_modal_title: { ru: "\u0418\u043C\u043F\u043E\u0440\u0442 \u0431\u0430\u043D\u043A\u043E\u0432\u0441\u043A\u043E\u0439 \u0432\u044B\u043F\u0438\u0441\u043A\u0438", en: "Import bank statement", zh: "\u5BFC\u5165\u94F6\u884C\u5BF9\u8D26\u5355" },
+  import_modal_subtitle: { ru: "\u041F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u0435 \u0444\u043E\u0440\u043C\u0430\u0442\u044B: CSV, XLSX", en: "Supported formats: CSV, XLSX", zh: "\u652F\u6301\u7684\u683C\u5F0F:CSV\u3001XLSX" },
+  import_modal_choose_file: { ru: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u0444\u0430\u0439\u043B", en: "Choose file", zh: "\u9009\u62E9\u6587\u4EF6" },
+  import_modal_drop_hint: { ru: "\u0438\u043B\u0438 \u043F\u0435\u0440\u0435\u0442\u0430\u0449\u0438\u0442\u0435 \u0444\u0430\u0439\u043B \u0441\u044E\u0434\u0430", en: "or drop a file here", zh: "\u6216\u5C06\u6587\u4EF6\u62D6\u653E\u5230\u6B64\u5904" },
+  import_modal_parsing: { ru: "\u041E\u0431\u0440\u0430\u0431\u0430\u0442\u044B\u0432\u0430\u044E \u0444\u0430\u0439\u043B\u2026", en: "Reading file\u2026", zh: "\u6B63\u5728\u8BFB\u53D6\u6587\u4EF6\u2026" },
+  import_modal_error_parse: { ru: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044C \u0444\u0430\u0439\u043B. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0444\u043E\u0440\u043C\u0430\u0442 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430.", en: "Couldn't read this file. Check the format and try again.", zh: "\u65E0\u6CD5\u8BFB\u53D6\u8BE5\u6587\u4EF6\u3002\u8BF7\u68C0\u67E5\u683C\u5F0F\u540E\u91CD\u8BD5\u3002" },
+  import_modal_error_empty: { ru: "\u0424\u0430\u0439\u043B \u043F\u0443\u0441\u0442\u043E\u0439 \u0438\u043B\u0438 \u043D\u0435 \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u0442 \u0434\u0430\u043D\u043D\u044B\u0445.", en: "The file is empty or contains no data.", zh: "\u6587\u4EF6\u4E3A\u7A7A\u6216\u4E0D\u5305\u542B\u4EFB\u4F55\u6570\u636E\u3002" },
+  import_modal_error_columns: { ru: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0440\u0430\u0441\u043F\u043E\u0437\u043D\u0430\u0442\u044C \u043A\u043E\u043B\u043E\u043D\u043A\u0438 \xAB\u0414\u0430\u0442\u0430\xBB, \xAB\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435\xBB \u0438 \xAB\u0421\u0443\u043C\u043C\u0430\xBB \u0432 \u044D\u0442\u043E\u043C \u0444\u0430\u0439\u043B\u0435.", en: "Couldn't recognize the Date, Description, and Amount columns in this file.", zh: "\u65E0\u6CD5\u8BC6\u522B\u6587\u4EF6\u4E2D\u7684\u300C\u65E5\u671F\u300D\u300C\u63CF\u8FF0\u300D\u548C\u300C\u91D1\u989D\u300D\u5217\u3002" },
+  import_modal_try_again: { ru: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u0434\u0440\u0443\u0433\u043E\u0439 \u0444\u0430\u0439\u043B", en: "Choose a different file", zh: "\u9009\u62E9\u5176\u4ED6\u6587\u4EF6" },
+  import_preview_found: { ru: "\u041D\u0430\u0439\u0434\u0435\u043D\u043E \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0439", en: "Transactions found", zh: "\u5DF2\u627E\u5230\u4EA4\u6613" },
+  import_preview_new: { ru: "\u041D\u043E\u0432\u044B\u0445", en: "New", zh: "\u65B0\u589E" },
+  import_preview_duplicates: { ru: "\u0414\u0443\u0431\u043B\u0438\u043A\u0430\u0442\u044B (\u043D\u0435 \u0431\u0443\u0434\u0443\u0442 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u044B)", en: "Duplicates (won't be added)", zh: "\u91CD\u590D\u9879(\u4E0D\u4F1A\u6DFB\u52A0)" },
+  import_preview_skipped: { ru: "\u041F\u0440\u043E\u043F\u0443\u0449\u0435\u043D\u043E (\u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0440\u0430\u0441\u043F\u043E\u0437\u043D\u0430\u0442\u044C)", en: "Skipped (couldn't be read)", zh: "\u5DF2\u8DF3\u8FC7(\u65E0\u6CD5\u8BC6\u522B)" },
+  import_col_date: { ru: "\u0414\u0430\u0442\u0430", en: "Date", zh: "\u65E5\u671F" },
+  import_col_name: { ru: "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435", en: "Name", zh: "\u540D\u79F0" },
+  import_col_amount: { ru: "\u0421\u0443\u043C\u043C\u0430", en: "Amount", zh: "\u91D1\u989D" },
+  import_col_category: { ru: "\u041A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F", en: "Category", zh: "\u5206\u7C7B" },
+  import_btn_confirm: { ru: "\u0418\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C", en: "Import", zh: "\u5BFC\u5165" },
+  import_btn_cancel: { ru: "\u041E\u0442\u043C\u0435\u043D\u0430", en: "Cancel", zh: "\u53D6\u6D88" },
+  import_nothing_to_import: { ru: "\u041D\u0435\u0442 \u043D\u043E\u0432\u044B\u0445 \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0439 \u0434\u043B\u044F \u0438\u043C\u043F\u043E\u0440\u0442\u0430.", en: "No new transactions to import.", zh: "\u6CA1\u6709\u53EF\u5BFC\u5165\u7684\u65B0\u4EA4\u6613\u3002" },
+  import_success_toast: { ru: "\u041E\u043F\u0435\u0440\u0430\u0446\u0438\u0438 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u044B", en: "Transactions imported", zh: "\u4EA4\u6613\u5DF2\u5BFC\u5165" },
   cancel_btn: { ru: "\u041E\u0442\u043C\u0435\u043D\u0430", en: "Cancel", zh: "\u53D6\u6D88" },
   empty_transactions: { ru: "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0439 \u0437\u0430 \u044D\u0442\u043E\u0442 \u043F\u0435\u0440\u0438\u043E\u0434. \u041D\u0430\u0436\u043C\u0438\u0442\u0435 \xAB\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u044E\xBB, \u0447\u0442\u043E\u0431\u044B \u0437\u0430\u043F\u0438\u0441\u0430\u0442\u044C \u043F\u0435\u0440\u0432\u0443\u044E.", en: "No transactions yet for this period. Tap \u201CAdd transaction\u201D to record the first one.", zh: "\u672C\u671F\u8FD8\u6CA1\u6709\u4EA4\u6613\u8BB0\u5F55\u3002\u70B9\u51FB\u300C\u6DFB\u52A0\u4EA4\u6613\u300D\u8BB0\u5F55\u7B2C\u4E00\u7B14\u3002" },
   type_expense: { ru: "\u0420\u0430\u0441\u0445\u043E\u0434", en: "Expense", zh: "\u652F\u51FA" },
@@ -918,6 +948,11 @@ const I18N = {
   whats_new_intro: { ru: "\u041E\u0442 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u0430:", en: "From the developer:", zh: "\u6765\u81EA\u5F00\u53D1\u8005:" },
   whats_new_close: { ru: "\u041F\u043E\u043D\u044F\u0442\u043D\u043E", en: "Got it", zh: "\u77E5\u9053\u4E86" },
   previous_updates_label: { ru: "\u041F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0438\u0435 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F", en: "Previous updates", zh: "\u4EE5\u5F80\u66F4\u65B0" },
+  changelog_8_0_greeting: { ru: "\u0418\u043C\u043F\u043E\u0440\u0442 \u0431\u0430\u043D\u043A\u043E\u0432\u0441\u043A\u0438\u0445 \u0432\u044B\u043F\u0438\u0441\u043E\u043A", en: "Bank statement import", zh: "\u94F6\u884C\u5BF9\u8D26\u5355\u5BFC\u5165" },
+  changelog_8_0_1: { ru: "\u041E\u043F\u0435\u0440\u0430\u0446\u0438\u0438 \u0442\u0435\u043F\u0435\u0440\u044C \u043C\u043E\u0436\u043D\u043E \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0440\u0430\u0437\u0443 \u0438\u0437 \u0432\u044B\u043F\u0438\u0441\u043A\u0438 \u0431\u0430\u043D\u043A\u0430 \u2014 \u0432 \u0444\u043E\u0440\u043C\u0430\u0442\u0435 CSV \u0438\u043B\u0438 XLSX, \u2014 \u0432\u043C\u0435\u0441\u0442\u043E \u0442\u043E\u0433\u043E \u0447\u0442\u043E\u0431\u044B \u0432\u0432\u043E\u0434\u0438\u0442\u044C \u0438\u0445 \u0432\u0440\u0443\u0447\u043D\u0443\u044E \u043E\u0434\u043D\u0443 \u0437\u0430 \u0434\u0440\u0443\u0433\u043E\u0439.", en: "Transactions can now be loaded directly from a bank statement \u2014 in CSV or XLSX format \u2014 instead of entering them one by one.", zh: "\u73B0\u5728\u53EF\u4EE5\u76F4\u63A5\u4ECE\u94F6\u884C\u5BF9\u8D26\u5355\u5BFC\u5165\u4EA4\u6613\u8BB0\u5F55\u2014\u2014\u652F\u6301 CSV \u6216 XLSX \u683C\u5F0F\u2014\u2014\u65E0\u9700\u518D\u9010\u7B14\u624B\u52A8\u5F55\u5165\u3002" },
+  changelog_8_0_2: { ru: "\u041F\u0435\u0440\u0435\u0434 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043C \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043F\u0440\u0435\u0434\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440: \u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0439 \u043D\u0430\u0439\u0434\u0435\u043D\u043E, \u043A \u043A\u0430\u043A\u0438\u043C \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F\u043C \u043E\u043D\u0438 \u043E\u0442\u043D\u0435\u0441\u0435\u043D\u044B, \u0438 \u0447\u0442\u043E \u0443\u0436\u0435 \u0435\u0441\u0442\u044C \u0432 \u0441\u043F\u0438\u0441\u043A\u0435 \u2014 \u0442\u0430\u043A\u0438\u0435 \u0441\u0442\u0440\u043E\u043A\u0438 \u0432 \u0438\u043C\u043F\u043E\u0440\u0442 \u043D\u0435 \u043F\u043E\u043F\u0430\u0434\u0443\u0442.", en: "Before anything is added, you get a preview: how many transactions were found, which categories they've been assigned, and anything already on your list \u2014 those entries are left out of the import.", zh: "\u5728\u6B63\u5F0F\u6DFB\u52A0\u524D\u4F1A\u663E\u793A\u9884\u89C8:\u627E\u5230\u4E86\u591A\u5C11\u7B14\u4EA4\u6613\u3001\u5B83\u4EEC\u88AB\u5F52\u5165\u4E86\u54EA\u4E9B\u5206\u7C7B,\u4EE5\u53CA\u54EA\u4E9B\u5DF2\u5B58\u5728\u4E8E\u5217\u8868\u4E2D\u2014\u2014\u8FD9\u4E9B\u8BB0\u5F55\u5C06\u4E0D\u4F1A\u88AB\u91CD\u590D\u5BFC\u5165\u3002" },
+  changelog_8_0_3: { ru: "\u041A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F \u0434\u043B\u044F \u043A\u0430\u0436\u0434\u043E\u0439 \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0438 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u044F\u0435\u0442\u0441\u044F \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438 \u043F\u043E \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044E \u2014 \u0441\u0438\u0441\u0442\u0435\u043C\u0443 \u043B\u0435\u0433\u043A\u043E \u0434\u043E\u043D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C \u043F\u043E\u0434 \u043D\u043E\u0432\u044B\u0435 \u043C\u0430\u0433\u0430\u0437\u0438\u043D\u044B \u0438 \u0441\u0435\u0440\u0432\u0438\u0441\u044B.", en: "Each transaction's category is detected automatically from its description \u2014 easy to extend for new merchants and services over time.", zh: "\u6BCF\u7B14\u4EA4\u6613\u7684\u5206\u7C7B\u4F1A\u6839\u636E\u63CF\u8FF0\u81EA\u52A8\u8BC6\u522B\u2014\u2014\u8BE5\u7CFB\u7EDF\u53EF\u8F7B\u677E\u6269\u5C55,\u4EE5\u9002\u914D\u65B0\u7684\u5546\u6237\u548C\u670D\u52A1\u3002" },
+  changelog_8_0_thanks: { ru: "\u041E\u0441\u043E\u0431\u0435\u043D\u043D\u043E \u043F\u043E\u043B\u0435\u0437\u043D\u043E \u043F\u0440\u0438 \u043F\u0435\u0440\u0432\u043E\u043C \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u0435 \u0432 Kopiqo \u2014 \u043C\u043E\u0436\u043D\u043E \u0431\u044B\u0441\u0442\u0440\u043E \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0438\u0441\u0442\u043E\u0440\u0438\u044E \u0442\u0440\u0430\u0442 \u0432\u043C\u0435\u0441\u0442\u043E \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u0430 \u0432\u0440\u0443\u0447\u043D\u0443\u044E.", en: "Especially handy when first moving into Kopiqo \u2014 a fast way to bring in your spending history instead of typing it all in by hand.", zh: "\u5728\u521D\u6B21\u8FC1\u79FB\u81F3 Kopiqo \u65F6\u5C24\u5176\u5B9E\u7528\u2014\u2014\u53EF\u5FEB\u901F\u5BFC\u5165\u6D88\u8D39\u5386\u53F2,\u65E0\u9700\u9010\u7B14\u624B\u52A8\u8F93\u5165\u3002" },
   changelog_7_15_greeting: { ru: "\u0422\u043E\u0447\u043D\u0430\u044F \u0438 \u043F\u043B\u0430\u0432\u043D\u0430\u044F \u043F\u043E\u0434\u0441\u0432\u0435\u0442\u043A\u0430 \u0432 \u043E\u0431\u0443\u0447\u0435\u043D\u0438\u0438", en: "Precise, smooth highlighting in onboarding", zh: "\u5F15\u5BFC\u6559\u7A0B\u4E2D\u7CBE\u51C6\u6D41\u7545\u7684\u9AD8\u4EAE\u663E\u793A" },
   changelog_7_15_1: { ru: "\u041F\u043E\u0434\u0441\u043A\u0430\u0437\u043A\u0438 \u0432 \u043E\u0431\u0443\u0447\u0435\u043D\u0438\u0438 \u0442\u0435\u043F\u0435\u0440\u044C \u0442\u043E\u0447\u043D\u043E \u0443\u043A\u0430\u0437\u044B\u0432\u0430\u044E\u0442 \u043D\u0430 \u043D\u0443\u0436\u043D\u044B\u0439 \u044D\u043B\u0435\u043C\u0435\u043D\u0442 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u2014 \u043D\u0430 \u043B\u044E\u0431\u043E\u043C \u0440\u0430\u0437\u043C\u0435\u0440\u0435 \u044D\u043A\u0440\u0430\u043D\u0430 \u0438 \u0432 \u043B\u044E\u0431\u043E\u0439 \u043C\u043E\u043C\u0435\u043D\u0442 \u043F\u0440\u043E\u043A\u0440\u0443\u0442\u043A\u0438.", en: "Onboarding tips now point precisely at the right interface element \u2014 on any screen size and at any point during scrolling.", zh: "\u5F15\u5BFC\u63D0\u793A\u73B0\u5728\u80FD\u7CBE\u51C6\u6307\u5411\u6B63\u786E\u7684\u754C\u9762\u5143\u7D20\u2014\u2014\u9002\u7528\u4E8E\u4EFB\u4F55\u5C4F\u5E55\u5C3A\u5BF8\u53CA\u6EDA\u52A8\u8FC7\u7A0B\u4E2D\u7684\u4EFB\u4F55\u65F6\u523B\u3002" },
   changelog_7_15_2: { ru: "\u041F\u043E\u0434\u0441\u0432\u0435\u0442\u043A\u0430 \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u0442 \u044D\u043B\u0435\u043C\u0435\u043D\u0442 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u0432 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u043C \u0432\u0440\u0435\u043C\u0435\u043D\u0438, \u0431\u0435\u0437 \u0437\u0430\u0434\u0435\u0440\u0436\u0435\u043A \u0438 \u0440\u044B\u0432\u043A\u043E\u0432 \u043F\u0440\u0438 \u043F\u0440\u043E\u043A\u0440\u0443\u0442\u043A\u0435.", en: "The highlight tracks the interface element in real time, without lag or jitter while scrolling.", zh: "\u9AD8\u4EAE\u4F1A\u5B9E\u65F6\u8DDF\u8E2A\u754C\u9762\u5143\u7D20,\u6EDA\u52A8\u65F6\u4E0D\u518D\u51FA\u73B0\u5EF6\u8FDF\u6216\u6296\u52A8\u3002" },
@@ -5425,6 +5460,141 @@ function ConfirmModal({ t, title, note, onConfirm, onCancel }) {
     ] })
   ] }) });
 }
+function StatementImportModal({ onClose, onImport, accounts, transactions, currency, rate, t }) {
+  const [stage, setStage] = useState("pick");
+  const [errorReason, setErrorReason] = useState(null);
+  const [result, setResult] = useState(null);
+  const [accountId, setAccountId] = useState(accounts && accounts[0] ? accounts[0].id : DEFAULT_ACCOUNT_ID);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+  const importModRef = useRef(null);
+  const handleFile = async (file) => {
+    if (!file) return;
+    setStage("parsing");
+    try {
+      if (!importModRef.current) importModRef.current = await import("./import/importer.js");
+      const existingTransactions = transactions || [];
+      const res = await importModRef.current.importStatementFile(file, { accountId, existingTransactions });
+      if (!res.ok) {
+        setErrorReason(res.reason);
+        setStage("error");
+        return;
+      }
+      setResult(res);
+      setStage("preview");
+    } catch (e) {
+      setErrorReason("parse_failed");
+      setStage("error");
+    }
+  };
+  const onFileInputChange = (e) => {
+    const f = e.target.files && e.target.files[0];
+    handleFile(f);
+  };
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    handleFile(f);
+  };
+  const errorText = errorReason === "empty_file" ? t("import_modal_error_empty") : errorReason === "columns_not_recognized" ? t("import_modal_error_columns") : t("import_modal_error_parse");
+  const newRows = result ? result.rows.filter((r) => r.status === "new") : [];
+  const handleConfirmImport = () => {
+    if (newRows.length === 0) {
+      onClose();
+      return;
+    }
+    const txArray = newRows.map((r) => ({ ...r.tx, amount: toStorageAmount(r.tx.amount, currency, rate) }));
+    onImport(txArray);
+    onClose();
+  };
+  return /* @__PURE__ */ jsx("div", { className: "gb-modal-overlay", children: /* @__PURE__ */ jsxs("div", { className: "gb-modal-card gb-import-modal-card", children: [
+    /* @__PURE__ */ jsx("p", { className: "gb-modal-title", children: t("import_modal_title") }),
+    stage === "pick" && /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsx("p", { className: "gb-modal-note", children: t("import_modal_subtitle") }),
+      /* @__PURE__ */ jsxs(
+        "div",
+        {
+          className: "gb-import-dropzone" + (dragOver ? " is-dragover" : ""),
+          onDragOver: (e) => {
+            e.preventDefault();
+            setDragOver(true);
+          },
+          onDragLeave: () => setDragOver(false),
+          onDrop,
+          children: [
+            /* @__PURE__ */ jsx(UploadCloud, { size: 28 }),
+            /* @__PURE__ */ jsx("button", { type: "button", className: "gb-modal-btn gb-modal-btn-yes", onClick: () => fileInputRef.current && fileInputRef.current.click(), children: t("import_modal_choose_file") }),
+            /* @__PURE__ */ jsx("span", { className: "gb-import-drop-hint", children: t("import_modal_drop_hint") }),
+            /* @__PURE__ */ jsx("input", { ref: fileInputRef, type: "file", accept: ".csv,.xlsx,.xls", style: { display: "none" }, onChange: onFileInputChange })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsx("div", { className: "gb-modal-actions", children: /* @__PURE__ */ jsx("button", { className: "gb-modal-btn gb-modal-btn-no", onClick: onClose, children: t("import_btn_cancel") }) })
+    ] }),
+    stage === "parsing" && /* @__PURE__ */ jsx("p", { className: "gb-modal-note gb-import-parsing", children: t("import_modal_parsing") }),
+    stage === "error" && /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsx("p", { className: "gb-modal-note", children: errorText }),
+      /* @__PURE__ */ jsxs("div", { className: "gb-modal-actions", children: [
+        /* @__PURE__ */ jsx("button", { className: "gb-modal-btn gb-modal-btn-yes", onClick: () => setStage("pick"), children: t("import_modal_try_again") }),
+        /* @__PURE__ */ jsx("button", { className: "gb-modal-btn gb-modal-btn-no", onClick: onClose, children: t("import_btn_cancel") })
+      ] })
+    ] }),
+    stage === "preview" && result && /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsxs("div", { className: "gb-import-summary", children: [
+        /* @__PURE__ */ jsxs("span", { children: [
+          /* @__PURE__ */ jsx("strong", { children: result.rows.length }),
+          " ",
+          t("import_preview_found")
+        ] }),
+        /* @__PURE__ */ jsxs("span", { className: "gb-import-summary-new", children: [
+          t("import_preview_new"),
+          ": ",
+          result.newCount
+        ] }),
+        result.duplicateCount > 0 && /* @__PURE__ */ jsxs("span", { className: "gb-import-summary-dup", children: [
+          t("import_preview_duplicates"),
+          ": ",
+          result.duplicateCount
+        ] }),
+        result.skippedCount > 0 && /* @__PURE__ */ jsxs("span", { className: "gb-import-summary-skip", children: [
+          t("import_preview_skipped"),
+          ": ",
+          result.skippedCount
+        ] })
+      ] }),
+      newRows.length === 0 ? /* @__PURE__ */ jsx("p", { className: "gb-modal-note", children: t("import_nothing_to_import") }) : /* @__PURE__ */ jsx("div", { className: "gb-import-table-wrap", children: /* @__PURE__ */ jsxs("table", { className: "gb-import-table", children: [
+        /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
+          /* @__PURE__ */ jsx("th", { children: t("import_col_date") }),
+          /* @__PURE__ */ jsx("th", { children: t("import_col_name") }),
+          /* @__PURE__ */ jsx("th", { children: t("import_col_amount") }),
+          /* @__PURE__ */ jsx("th", { children: t("import_col_category") })
+        ] }) }),
+        /* @__PURE__ */ jsx("tbody", { children: newRows.map((r, i) => {
+          const catList = r.tx.type === "expense" ? [...EXPENSE_CATEGORIES] : INCOME_CATEGORIES;
+          const cat = catList.find((c) => c.id === r.tx.category);
+          return /* @__PURE__ */ jsxs("tr", { children: [
+            /* @__PURE__ */ jsxs("td", { children: [
+              r.tx.date.slice(8, 10),
+              ".",
+              r.tx.date.slice(5, 7)
+            ] }),
+            /* @__PURE__ */ jsx("td", { className: "gb-import-table-note", children: r.tx.note }),
+            /* @__PURE__ */ jsxs("td", { className: r.tx.type === "expense" ? "gb-import-amount-exp" : "gb-import-amount-inc", children: [
+              r.tx.type === "expense" ? "\u2212" : "+",
+              fmtMoney(toStorageAmount(r.tx.amount, currency, rate), currency, rate)
+            ] }),
+            /* @__PURE__ */ jsx("td", { children: cat ? categoryLabel(cat, t) : r.tx.category })
+          ] }, i);
+        }) })
+      ] }) }),
+      /* @__PURE__ */ jsxs("div", { className: "gb-modal-actions", children: [
+        /* @__PURE__ */ jsx("button", { className: "gb-modal-btn gb-modal-btn-yes", onClick: handleConfirmImport, disabled: newRows.length === 0, children: t("import_btn_confirm") }),
+        /* @__PURE__ */ jsx("button", { className: "gb-modal-btn gb-modal-btn-no", onClick: onClose, children: t("import_btn_cancel") })
+      ] })
+    ] })
+  ] }) });
+}
 function CalendarView({
   transactions,
   customCategories,
@@ -5461,6 +5631,7 @@ function CalendarView({
   const [rangeTo, setRangeTo] = useState(customRange?.to || todayStr());
   const [search, setSearch] = useState("");
   const [recurringOpen, setRecurringOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const lang = language || "ru";
   const accountList = [DEFAULT_ACCOUNT, ...accounts];
   const showAccountTags = accounts.length > 0;
@@ -5708,15 +5879,33 @@ function CalendarView({
       ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
         /* @__PURE__ */ jsxs("div", { className: "gb-card-header", children: [
           /* @__PURE__ */ jsx("h3", { className: "gb-card-title gb-ops-day-title", children: scopeTitle }),
-          /* @__PURE__ */ jsxs("button", { "data-tour": "add-transaction-btn", className: "gb-add-btn", onClick: () => setFormOpen((v) => {
-            const next = !v;
-            if (next) window.__kopiqoBus.emit("transaction_form_opened", {});
-            return next;
-          }), children: [
-            formOpen ? /* @__PURE__ */ jsx(X, { size: 16 }) : /* @__PURE__ */ jsx(Plus, { size: 16 }),
-            formOpen ? t("cancel_btn") : t("add_transaction_btn")
+          /* @__PURE__ */ jsxs("div", { className: "gb-ops-header-actions", children: [
+            /* @__PURE__ */ jsxs("button", { className: "gb-import-btn", onClick: () => setImportOpen(true), children: [
+              /* @__PURE__ */ jsx(UploadCloud, { size: 16 }),
+              t("import_operations_btn")
+            ] }),
+            /* @__PURE__ */ jsxs("button", { "data-tour": "add-transaction-btn", className: "gb-add-btn", onClick: () => setFormOpen((v) => {
+              const next = !v;
+              if (next) window.__kopiqoBus.emit("transaction_form_opened", {});
+              return next;
+            }), children: [
+              formOpen ? /* @__PURE__ */ jsx(X, { size: 16 }) : /* @__PURE__ */ jsx(Plus, { size: 16 }),
+              formOpen ? t("cancel_btn") : t("add_transaction_btn")
+            ] })
           ] })
         ] }),
+        importOpen && /* @__PURE__ */ jsx(
+          StatementImportModal,
+          {
+            onClose: () => setImportOpen(false),
+            onImport: (txArray) => addTransaction(txArray),
+            accounts: accountList,
+            transactions,
+            currency,
+            rate,
+            t
+          }
+        ),
         scopeMode === "day" && !customRange && /* @__PURE__ */ jsx("button", { type: "button", className: "gb-link-btn", style: { marginBottom: 10 }, onClick: () => setSelectedDay(null), children: t("back_to_month_view") }),
         formOpen && /* @__PURE__ */ jsx(
           TransactionForm,
@@ -6508,6 +6697,41 @@ function Styles() {
       .gb-modal-btn { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: 600; font-size: 13px; cursor: pointer; color: #FFFFFF; font-family: 'Inter', sans-serif; }
       .gb-modal-btn-yes { background: var(--sage-fill); }
       .gb-modal-btn-no { background: var(--rose-fill); }
+      .gb-modal-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+      .gb-ops-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .gb-import-btn {
+        display: flex; align-items: center; gap: 6px; background: var(--honey-fill); color: #FFFFFF;
+        border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+        cursor: pointer; font-family: 'Inter', sans-serif; box-shadow: 0 0 0 3px rgba(217, 168, 92, 0.25);
+      }
+      .gb-import-btn:hover { opacity: 0.92; }
+      .gb-import-modal-card { max-width: 480px; text-align: left; width: 100%; }
+      .gb-import-modal-card .gb-modal-title { text-align: center; }
+      .gb-import-modal-card .gb-modal-note { text-align: center; }
+      .gb-import-dropzone {
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+        border: 1.5px dashed var(--border); border-radius: 12px; padding: 28px 16px;
+        color: var(--muted); margin-bottom: 16px; transition: border-color 0.15s, background 0.15s;
+      }
+      .gb-import-dropzone.is-dragover { border-color: var(--sage-fill); background: var(--surface2); }
+      .gb-import-drop-hint { font-size: 12px; color: var(--muted); }
+      .gb-import-parsing { text-align: center; padding: 20px 0; }
+      .gb-import-summary { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+      .gb-import-summary-new { color: var(--sage-text); font-weight: 600; }
+      .gb-import-summary-dup { color: var(--honey-text); }
+      .gb-import-summary-skip { color: var(--rose-text); }
+      .gb-import-table-wrap { max-height: 320px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; }
+      .gb-import-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      .gb-import-table th { position: sticky; top: 0; background: var(--surface2); color: var(--muted); text-align: left; padding: 8px 10px; font-weight: 600; white-space: nowrap; }
+      .gb-import-table td { padding: 7px 10px; border-top: 1px solid var(--border); color: var(--ink); white-space: nowrap; }
+      .gb-import-table-note { white-space: normal; max-width: 160px; }
+      .gb-import-amount-exp { color: var(--rose-text); font-weight: 600; }
+      .gb-import-amount-inc { color: var(--sage-text); font-weight: 600; }
+      @media (max-width: 480px) {
+        .gb-import-table th, .gb-import-table td { padding: 6px 8px; }
+        .gb-import-table-note { max-width: 110px; }
+      }
 
       .gb-ach-progress { font-size: 12px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
       .gb-tier-summary { display: flex; align-items: center; gap: 18px; }

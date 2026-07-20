@@ -590,7 +590,7 @@ const I18N = {
   add_transaction_btn: { ru: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u044E", en: "Add transaction", zh: "\u6DFB\u52A0\u4EA4\u6613" },
   import_operations_btn: { ru: "\u0418\u043C\u043F\u043E\u0440\u0442 \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0439", en: "Import transactions", zh: "\u5BFC\u5165\u4EA4\u6613" },
   import_modal_title: { ru: "\u0418\u043C\u043F\u043E\u0440\u0442 \u0431\u0430\u043D\u043A\u043E\u0432\u0441\u043A\u043E\u0439 \u0432\u044B\u043F\u0438\u0441\u043A\u0438", en: "Import bank statement", zh: "\u5BFC\u5165\u94F6\u884C\u5BF9\u8D26\u5355" },
-  import_modal_subtitle: { ru: "\u041F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u0435 \u0444\u043E\u0440\u043C\u0430\u0442\u044B: CSV, XLSX", en: "Supported formats: CSV, XLSX", zh: "\u652F\u6301\u7684\u683C\u5F0F:CSV\u3001XLSX" },
+  import_modal_subtitle: { ru: "\u041F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u0435 \u0444\u043E\u0440\u043C\u0430\u0442\u044B: CSV, XLSX, PDF", en: "Supported formats: CSV, XLSX, PDF", zh: "\u652F\u6301\u7684\u683C\u5F0F:CSV\u3001XLSX\u3001PDF" },
   import_modal_choose_file: { ru: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u0444\u0430\u0439\u043B", en: "Choose file", zh: "\u9009\u62E9\u6587\u4EF6" },
   import_modal_drop_hint: { ru: "\u0438\u043B\u0438 \u043F\u0435\u0440\u0435\u0442\u0430\u0449\u0438\u0442\u0435 \u0444\u0430\u0439\u043B \u0441\u044E\u0434\u0430", en: "or drop a file here", zh: "\u6216\u5C06\u6587\u4EF6\u62D6\u653E\u5230\u6B64\u5904" },
   import_modal_parsing: { ru: "\u041E\u0431\u0440\u0430\u0431\u0430\u0442\u044B\u0432\u0430\u044E \u0444\u0430\u0439\u043B\u2026", en: "Reading file\u2026", zh: "\u6B63\u5728\u8BFB\u53D6\u6587\u4EF6\u2026" },
@@ -598,6 +598,9 @@ const I18N = {
   import_modal_error_empty: { ru: "\u0424\u0430\u0439\u043B \u043F\u0443\u0441\u0442\u043E\u0439 \u0438\u043B\u0438 \u043D\u0435 \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u0442 \u0434\u0430\u043D\u043D\u044B\u0445.", en: "The file is empty or contains no data.", zh: "\u6587\u4EF6\u4E3A\u7A7A\u6216\u4E0D\u5305\u542B\u4EFB\u4F55\u6570\u636E\u3002" },
   import_modal_error_columns: { ru: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0440\u0430\u0441\u043F\u043E\u0437\u043D\u0430\u0442\u044C \u043A\u043E\u043B\u043E\u043D\u043A\u0438 \xAB\u0414\u0430\u0442\u0430\xBB, \xAB\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435\xBB \u0438 \xAB\u0421\u0443\u043C\u043C\u0430\xBB \u0432 \u044D\u0442\u043E\u043C \u0444\u0430\u0439\u043B\u0435.", en: "Couldn't recognize the Date, Description, and Amount columns in this file.", zh: "\u65E0\u6CD5\u8BC6\u522B\u6587\u4EF6\u4E2D\u7684\u300C\u65E5\u671F\u300D\u300C\u63CF\u8FF0\u300D\u548C\u300C\u91D1\u989D\u300D\u5217\u3002" },
   import_modal_error_module: { ru: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043C\u043E\u0434\u0443\u043B\u044C \u0438\u043C\u043F\u043E\u0440\u0442\u0430. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u043A \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u0443 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430.", en: "Couldn't load the import module. Check your connection and try again.", zh: "\u65E0\u6CD5\u52A0\u8F7D\u5BFC\u5165\u6A21\u5757\u3002\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u540E\u91CD\u8BD5\u3002" },
+  import_modal_error_image_pdf: { ru: "\u042D\u0442\u0430 \u0432\u044B\u043F\u0438\u0441\u043A\u0430 \u044F\u0432\u043B\u044F\u0435\u0442\u0441\u044F \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043C. \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u044E\u0442\u0441\u044F \u0442\u043E\u043B\u044C\u043A\u043E \u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0435 PDF.", en: "This statement is an image. Only text-based PDFs are supported.", zh: "\u8BE5\u5BF9\u8D26\u5355\u4E3A\u56FE\u7247\u683C\u5F0F\u3002\u4EC5\u652F\u6301\u6587\u672C\u578B PDF \u6587\u4EF6\u3002" },
+  import_modal_error_no_operations: { ru: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u043D\u0438 \u043E\u0434\u043D\u043E\u0439 \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0438 \u0432 \u044D\u0442\u043E\u043C \u0444\u0430\u0439\u043B\u0435.", en: "Couldn't find any transactions in this file.", zh: "\u5728\u8BE5\u6587\u4EF6\u4E2D\u672A\u80FD\u627E\u5230\u4EFB\u4F55\u4EA4\u6613\u8BB0\u5F55\u3002" },
+  import_bank_detected: { ru: "\u041E\u043F\u0440\u0435\u0434\u0435\u043B\u0451\u043D \u0431\u0430\u043D\u043A", en: "Bank detected", zh: "\u5DF2\u8BC6\u522B\u94F6\u884C" },
   import_modal_try_again: { ru: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u0434\u0440\u0443\u0433\u043E\u0439 \u0444\u0430\u0439\u043B", en: "Choose a different file", zh: "\u9009\u62E9\u5176\u4ED6\u6587\u4EF6" },
   import_preview_found: { ru: "\u041D\u0430\u0439\u0434\u0435\u043D\u043E \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0439", en: "Transactions found", zh: "\u5DF2\u627E\u5230\u4EA4\u6613" },
   import_preview_new: { ru: "\u041D\u043E\u0432\u044B\u0445", en: "New", zh: "\u65B0\u589E" },
@@ -5509,7 +5512,7 @@ function StatementImportModal({ onClose, onImport, accounts, transactions, curre
     const f = e.dataTransfer.files && e.dataTransfer.files[0];
     handleFile(f);
   };
-  const errorText = errorReason === "empty_file" ? t("import_modal_error_empty") : errorReason === "columns_not_recognized" ? t("import_modal_error_columns") : errorReason === "module_load_failed" ? t("import_modal_error_module") : t("import_modal_error_parse");
+  const errorText = errorReason === "empty_file" ? t("import_modal_error_empty") : errorReason === "columns_not_recognized" ? t("import_modal_error_columns") : errorReason === "module_load_failed" ? t("import_modal_error_module") : errorReason === "no_text_layer" ? t("import_modal_error_image_pdf") : errorReason === "no_operations_found" ? t("import_modal_error_no_operations") : t("import_modal_error_parse");
   const newRows = result ? result.rows.filter((r) => r.status === "new") : [];
   const handleConfirmImport = () => {
     if (newRows.length === 0) {
@@ -5538,7 +5541,7 @@ function StatementImportModal({ onClose, onImport, accounts, transactions, curre
             /* @__PURE__ */ jsx(UploadCloud, { size: 28 }),
             /* @__PURE__ */ jsx("button", { type: "button", className: "gb-modal-btn gb-modal-btn-yes", onClick: () => fileInputRef.current && fileInputRef.current.click(), children: t("import_modal_choose_file") }),
             /* @__PURE__ */ jsx("span", { className: "gb-import-drop-hint", children: t("import_modal_drop_hint") }),
-            /* @__PURE__ */ jsx("input", { ref: fileInputRef, type: "file", accept: ".csv,.xlsx,.xls", style: { display: "none" }, onChange: onFileInputChange })
+            /* @__PURE__ */ jsx("input", { ref: fileInputRef, type: "file", accept: ".csv,.xlsx,.xls,.pdf", style: { display: "none" }, onChange: onFileInputChange })
           ]
         }
       ),
@@ -5553,6 +5556,11 @@ function StatementImportModal({ onClose, onImport, accounts, transactions, curre
       ] })
     ] }),
     stage === "preview" && result && /* @__PURE__ */ jsxs(Fragment, { children: [
+      result.bankName && result.bankName !== "\u0423\u043D\u0438\u0432\u0435\u0440\u0441\u0430\u043B\u044C\u043D\u044B\u0439 \u0444\u043E\u0440\u043C\u0430\u0442" && /* @__PURE__ */ jsxs("p", { className: "gb-import-bank-detected", children: [
+        t("import_bank_detected"),
+        ": ",
+        /* @__PURE__ */ jsx("strong", { children: result.bankName })
+      ] }),
       /* @__PURE__ */ jsxs("div", { className: "gb-import-summary", children: [
         /* @__PURE__ */ jsxs("span", { children: [
           /* @__PURE__ */ jsx("strong", { children: result.rows.length }),
@@ -6739,6 +6747,7 @@ function Styles() {
       .gb-import-summary-dup { color: var(--honey-text); }
       .gb-import-summary-skip { color: var(--rose-text); }
       .gb-import-summary-transfer { color: var(--powder-text); }
+      .gb-import-bank-detected { font-size: 12px; color: var(--muted); margin: 0 0 10px; text-align: center; }
       .gb-import-table-wrap { max-height: 320px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; }
       .gb-import-table { width: 100%; border-collapse: collapse; font-size: 12px; }
       .gb-import-table th { position: sticky; top: 0; background: var(--surface2); color: var(--muted); text-align: left; padding: 8px 10px; font-weight: 600; white-space: nowrap; }

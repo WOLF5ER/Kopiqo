@@ -1,96 +1,99 @@
 // ============================================================================
 // importer — the single entry point the UI calls. Takes a File object and
-// the app's current transactions (for dedup), returns a preview list ready
-// to show the user before anything is actually saved.
+// the app's current transactions (for dedup), returns a preview ready to
+// show the user before anything is actually saved.
+//
+// This is orchestration only — every actual concern (parsing a file format,
+// identifying a bank, normalizing a row, checking for duplicates, shaping
+// the preview) lives in its own module. Adding a new file format or bank
+// means adding a module elsewhere in /import, not touching this file.
 // ============================================================================
 
-import { parseCSV } from "./csv-parser.js";
-import { parseXLSX } from "./xlsx-parser.js";
-import { detectColumns } from "./bank-detector.js";
-import { normalizeRow } from "./transaction-normalizer.js";
+import { parseCSV } from "./parsers/csv-parser.js";
+import { parseXLSX } from "./parsers/xlsx-parser.js";
+import { parsePDF } from "./parsers/pdf-parser.js";
+import { detectBank, detectBankFromText } from "./detector.js";
+import { normalizeRow } from "./normalizer.js";
+import { isDuplicateAgainst } from "./duplicate-checker.js";
+import { buildPreview } from "./preview.js";
 
 /**
- * Two transactions are treated as the same import candidate if they land on
- * the same date, the same rounded amount, and their notes are a close
- * enough match — catches re-imports of the same statement (or overlapping
- * date ranges between two exports) without being so strict that two
- * genuinely different $5 coffees on the same day both get silently dropped
- * — those still differ enough in note text to pass.
+ * Reads a CSV/XLSX file into { rows: [{date, description, amount, bankCategory}], bank }.
  */
-function isLikelyDuplicate(candidate, existing) {
-  if (candidate.date !== existing.date) return false;
-  if (Math.round(candidate.amount) !== Math.round(existing.amount)) return false;
-  const a = (candidate.note || "").toLowerCase().trim();
-  const b = (existing.note || "").toLowerCase().trim();
-  if (!a || !b) return a === b;
-  return a === b || a.includes(b) || b.includes(a);
+async function readTabularFile(file, isXlsx) {
+  const parsed = isXlsx ? await parseXLSX(await file.arrayBuffer()) : parseCSV(await file.text());
+  if (!parsed.headers.length || !parsed.rows.length) {
+    return { ok: false, reason: "empty_file" };
+  }
+  const detected = detectBank(parsed.headers);
+  if (!detected) {
+    return { ok: false, reason: "columns_not_recognized" };
+  }
+  const { bank, columns } = detected;
+  const rawRows = parsed.rows.map((row) => ({
+    date: row[columns.dateIdx],
+    description: row[columns.descriptionIdx],
+    amount: row[columns.amountIdx],
+    bankCategory: columns.categoryIdx !== -1 ? row[columns.categoryIdx] : undefined,
+  }));
+  return { ok: true, rawRows, bank };
+}
+
+/**
+ * Reads a PDF file into { rows: [{date, description, amount}], bank }.
+ */
+async function readPdfFile(file) {
+  const result = await parsePDF(await file.arrayBuffer());
+  if (!result.ok) return result;
+  if (result.rows.length === 0) return { ok: false, reason: "no_operations_found" };
+  const bank = detectBankFromText(result.fullText);
+  return { ok: true, rawRows: result.rows, bank };
 }
 
 /**
  * @param {File} file
  * @param {{ accountId: string, existingTransactions: object[] }} opts
- * @returns {Promise<{
- *   ok: true,
- *   rows: Array<{ tx: object, status: "new"|"duplicate"|"skipped"|"transfer", reason?: string }>,
- *   newCount: number, duplicateCount: number, skippedCount: number, transferCount: number,
- * } | { ok: false, reason: string }>}
+ * @returns {Promise<
+ *   { ok: true, rows: Array, bankName: string|null, newCount: number, duplicateCount: number, skippedCount: number, transferCount: number } |
+ *   { ok: false, reason: string }
+ * >}
  */
 export async function importStatementFile(file, opts) {
   const name = (file.name || "").toLowerCase();
-  let parsed;
+  let read;
   try {
-    if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
-      const buf = await file.arrayBuffer();
-      parsed = await parseXLSX(buf);
+    if (name.endsWith(".pdf")) {
+      read = await readPdfFile(file);
+    } else if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+      read = await readTabularFile(file, true);
     } else {
-      const text = await file.text();
-      parsed = parseCSV(text);
+      read = await readTabularFile(file, false);
     }
   } catch (e) {
     return { ok: false, reason: "parse_failed" };
   }
 
-  if (!parsed.headers.length || !parsed.rows.length) {
-    return { ok: false, reason: "empty_file" };
-  }
-
-  const columns = detectColumns(parsed.headers);
-  if (!columns) {
-    return { ok: false, reason: "columns_not_recognized" };
-  }
+  if (!read.ok) return read;
+  const { rawRows, bank } = read;
 
   const existing = opts.existingTransactions || [];
   const rows = [];
-  let newCount = 0, duplicateCount = 0, skippedCount = 0, transferCount = 0;
+  const acceptedSoFar = [];
 
-  for (const row of parsed.rows) {
-    const raw = {
-      date: row[columns.dateIdx],
-      description: row[columns.descriptionIdx],
-      amount: row[columns.amountIdx],
-      bankCategory: columns.categoryIdx !== -1 ? row[columns.categoryIdx] : undefined,
-    };
-    const result = normalizeRow(raw, { accountId: opts.accountId });
+  for (const raw of rawRows) {
+    const result = normalizeRow(raw, { accountId: opts.accountId, bank });
     if (!result.ok) {
-      if (result.reason === "self_transfer") {
-        transferCount++;
-        rows.push({ tx: null, status: "transfer", reason: result.reason });
-      } else {
-        skippedCount++;
-        rows.push({ tx: null, status: "skipped", reason: result.reason });
-      }
+      const status = result.reason === "self_transfer" ? "transfer" : "skipped";
+      rows.push({ tx: null, status, reason: result.reason });
       continue;
     }
-    const isDup = existing.some((e) => isLikelyDuplicate(result.tx, e))
-      || rows.some((r) => r.status === "new" && isLikelyDuplicate(result.tx, r.tx));
-    if (isDup) {
-      duplicateCount++;
+    if (isDuplicateAgainst(result.tx, existing, acceptedSoFar)) {
       rows.push({ tx: result.tx, status: "duplicate" });
     } else {
-      newCount++;
+      acceptedSoFar.push(result.tx);
       rows.push({ tx: result.tx, status: "new" });
     }
   }
 
-  return { ok: true, rows, newCount, duplicateCount, skippedCount, transferCount };
+  return { ok: true, ...buildPreview(rows, bank) };
 }

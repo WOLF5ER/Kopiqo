@@ -329,7 +329,7 @@ function themeClassName(theme) {
   if (!theme || theme === "light") return "";
   return `gb-${theme.replace(/_/g, "-")}`;
 }
-const APP_VERSION = "8.0";
+const APP_VERSION = "8.1";
 const CHANGELOG = [
   {
     version: "8.1",

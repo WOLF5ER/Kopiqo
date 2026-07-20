@@ -597,6 +597,7 @@ const I18N = {
   import_modal_error_parse: { ru: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044C \u0444\u0430\u0439\u043B. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0444\u043E\u0440\u043C\u0430\u0442 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430.", en: "Couldn't read this file. Check the format and try again.", zh: "\u65E0\u6CD5\u8BFB\u53D6\u8BE5\u6587\u4EF6\u3002\u8BF7\u68C0\u67E5\u683C\u5F0F\u540E\u91CD\u8BD5\u3002" },
   import_modal_error_empty: { ru: "\u0424\u0430\u0439\u043B \u043F\u0443\u0441\u0442\u043E\u0439 \u0438\u043B\u0438 \u043D\u0435 \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u0442 \u0434\u0430\u043D\u043D\u044B\u0445.", en: "The file is empty or contains no data.", zh: "\u6587\u4EF6\u4E3A\u7A7A\u6216\u4E0D\u5305\u542B\u4EFB\u4F55\u6570\u636E\u3002" },
   import_modal_error_columns: { ru: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0440\u0430\u0441\u043F\u043E\u0437\u043D\u0430\u0442\u044C \u043A\u043E\u043B\u043E\u043D\u043A\u0438 \xAB\u0414\u0430\u0442\u0430\xBB, \xAB\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435\xBB \u0438 \xAB\u0421\u0443\u043C\u043C\u0430\xBB \u0432 \u044D\u0442\u043E\u043C \u0444\u0430\u0439\u043B\u0435.", en: "Couldn't recognize the Date, Description, and Amount columns in this file.", zh: "\u65E0\u6CD5\u8BC6\u522B\u6587\u4EF6\u4E2D\u7684\u300C\u65E5\u671F\u300D\u300C\u63CF\u8FF0\u300D\u548C\u300C\u91D1\u989D\u300D\u5217\u3002" },
+  import_modal_error_module: { ru: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043C\u043E\u0434\u0443\u043B\u044C \u0438\u043C\u043F\u043E\u0440\u0442\u0430. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u043A \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u0443 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430.", en: "Couldn't load the import module. Check your connection and try again.", zh: "\u65E0\u6CD5\u52A0\u8F7D\u5BFC\u5165\u6A21\u5757\u3002\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u540E\u91CD\u8BD5\u3002" },
   import_modal_try_again: { ru: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u0434\u0440\u0443\u0433\u043E\u0439 \u0444\u0430\u0439\u043B", en: "Choose a different file", zh: "\u9009\u62E9\u5176\u4ED6\u6587\u4EF6" },
   import_preview_found: { ru: "\u041D\u0430\u0439\u0434\u0435\u043D\u043E \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0439", en: "Transactions found", zh: "\u5DF2\u627E\u5230\u4EA4\u6613" },
   import_preview_new: { ru: "\u041D\u043E\u0432\u044B\u0445", en: "New", zh: "\u65B0\u589E" },
@@ -5471,10 +5472,19 @@ function StatementImportModal({ onClose, onImport, accounts, transactions, curre
   const handleFile = async (file) => {
     if (!file) return;
     setStage("parsing");
+    let mod;
     try {
-      if (!importModRef.current) importModRef.current = await import("./import/importer.js");
+      mod = importModRef.current || await import("./import/importer.js");
+      importModRef.current = mod;
+    } catch (e) {
+      console.error("Kopiqo import: failed to load the import module", e);
+      setErrorReason("module_load_failed");
+      setStage("error");
+      return;
+    }
+    try {
       const existingTransactions = transactions || [];
-      const res = await importModRef.current.importStatementFile(file, { accountId, existingTransactions });
+      const res = await mod.importStatementFile(file, { accountId, existingTransactions });
       if (!res.ok) {
         setErrorReason(res.reason);
         setStage("error");
@@ -5483,6 +5493,7 @@ function StatementImportModal({ onClose, onImport, accounts, transactions, curre
       setResult(res);
       setStage("preview");
     } catch (e) {
+      console.error("Kopiqo import: failed to process the file", e);
       setErrorReason("parse_failed");
       setStage("error");
     }
@@ -5497,7 +5508,7 @@ function StatementImportModal({ onClose, onImport, accounts, transactions, curre
     const f = e.dataTransfer.files && e.dataTransfer.files[0];
     handleFile(f);
   };
-  const errorText = errorReason === "empty_file" ? t("import_modal_error_empty") : errorReason === "columns_not_recognized" ? t("import_modal_error_columns") : t("import_modal_error_parse");
+  const errorText = errorReason === "empty_file" ? t("import_modal_error_empty") : errorReason === "columns_not_recognized" ? t("import_modal_error_columns") : errorReason === "module_load_failed" ? t("import_modal_error_module") : t("import_modal_error_parse");
   const newRows = result ? result.rows.filter((r) => r.status === "new") : [];
   const handleConfirmImport = () => {
     if (newRows.length === 0) {

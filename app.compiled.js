@@ -332,6 +332,13 @@ function themeClassName(theme) {
 const APP_VERSION = "8.0";
 const CHANGELOG = [
   {
+    version: "8.1",
+    date: "20.07.2026",
+    greeting: "changelog_8_1_greeting",
+    items: ["changelog_8_1_1"],
+    thanks: "changelog_8_1_thanks"
+  },
+  {
     version: "8.0",
     date: "20.07.2026",
     greeting: "changelog_8_0_greeting",
@@ -953,6 +960,9 @@ const I18N = {
   whats_new_intro: { ru: "\u041E\u0442 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u0430:", en: "From the developer:", zh: "\u6765\u81EA\u5F00\u53D1\u8005:" },
   whats_new_close: { ru: "\u041F\u043E\u043D\u044F\u0442\u043D\u043E", en: "Got it", zh: "\u77E5\u9053\u4E86" },
   previous_updates_label: { ru: "\u041F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0438\u0435 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F", en: "Previous updates", zh: "\u4EE5\u5F80\u66F4\u65B0" },
+  changelog_8_1_greeting: { ru: "Точнее распознаём выписки Т-Банка", en: "More accurate Т-Bank statement recognition", zh: "更精确地识别 Т-Bank 对账单" },
+  changelog_8_1_1: { ru: "Справка о движении средств в формате PDF теперь распознаётся корректно — все операции подгружаются, ни одна не теряется.", en: "PDF account statements are now recognized correctly — every transaction is picked up, none get missed.", zh: "PDF 格式的账户对账单现在可以正确识别——所有交易都会被读取，不会遗漏。" },
+  changelog_8_1_thanks: { ru: "Спасибо всем, кто прислал такие выписки для проверки — это помогло найти и закрыть пробел.", en: "Thanks to everyone who sent in statements like this for testing — it helped find and close the gap.", zh: "感谢提供此类对账单进行测试的用户——这帮助我们发现并修复了问题。" },
   changelog_8_0_greeting: { ru: "\u0418\u043C\u043F\u043E\u0440\u0442 \u0431\u0430\u043D\u043A\u043E\u0432\u0441\u043A\u0438\u0445 \u0432\u044B\u043F\u0438\u0441\u043E\u043A", en: "Bank statement import", zh: "\u94F6\u884C\u5BF9\u8D26\u5355\u5BFC\u5165" },
   changelog_8_0_1: { ru: "\u041E\u043F\u0435\u0440\u0430\u0446\u0438\u0438 \u0442\u0435\u043F\u0435\u0440\u044C \u043C\u043E\u0436\u043D\u043E \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0440\u0430\u0437\u0443 \u0438\u0437 \u0432\u044B\u043F\u0438\u0441\u043A\u0438 \u0431\u0430\u043D\u043A\u0430 \u2014 \u0432 \u0444\u043E\u0440\u043C\u0430\u0442\u0435 CSV \u0438\u043B\u0438 XLSX, \u2014 \u0432\u043C\u0435\u0441\u0442\u043E \u0442\u043E\u0433\u043E \u0447\u0442\u043E\u0431\u044B \u0432\u0432\u043E\u0434\u0438\u0442\u044C \u0438\u0445 \u0432\u0440\u0443\u0447\u043D\u0443\u044E \u043E\u0434\u043D\u0443 \u0437\u0430 \u0434\u0440\u0443\u0433\u043E\u0439.", en: "Transactions can now be loaded directly from a bank statement \u2014 in CSV or XLSX format \u2014 instead of entering them one by one.", zh: "\u73B0\u5728\u53EF\u4EE5\u76F4\u63A5\u4ECE\u94F6\u884C\u5BF9\u8D26\u5355\u5BFC\u5165\u4EA4\u6613\u8BB0\u5F55\u2014\u2014\u652F\u6301 CSV \u6216 XLSX \u683C\u5F0F\u2014\u2014\u65E0\u9700\u518D\u9010\u7B14\u624B\u52A8\u5F55\u5165\u3002" },
   changelog_8_0_2: { ru: "\u041F\u0435\u0440\u0435\u0434 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0438\u0435\u043C \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043F\u0440\u0435\u0434\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440: \u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0439 \u043D\u0430\u0439\u0434\u0435\u043D\u043E, \u043A \u043A\u0430\u043A\u0438\u043C \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F\u043C \u043E\u043D\u0438 \u043E\u0442\u043D\u0435\u0441\u0435\u043D\u044B, \u0438 \u0447\u0442\u043E \u0443\u0436\u0435 \u0435\u0441\u0442\u044C \u0432 \u0441\u043F\u0438\u0441\u043A\u0435 \u2014 \u0442\u0430\u043A\u0438\u0435 \u0441\u0442\u0440\u043E\u043A\u0438 \u0432 \u0438\u043C\u043F\u043E\u0440\u0442 \u043D\u0435 \u043F\u043E\u043F\u0430\u0434\u0443\u0442.", en: "Before anything is added, you get a preview: how many transactions were found, which categories they've been assigned, and anything already on your list \u2014 those entries are left out of the import.", zh: "\u5728\u6B63\u5F0F\u6DFB\u52A0\u524D\u4F1A\u663E\u793A\u9884\u89C8:\u627E\u5230\u4E86\u591A\u5C11\u7B14\u4EA4\u6613\u3001\u5B83\u4EEC\u88AB\u5F52\u5165\u4E86\u54EA\u4E9B\u5206\u7C7B,\u4EE5\u53CA\u54EA\u4E9B\u5DF2\u5B58\u5728\u4E8E\u5217\u8868\u4E2D\u2014\u2014\u8FD9\u4E9B\u8BB0\u5F55\u5C06\u4E0D\u4F1A\u88AB\u91CD\u590D\u5BFC\u5165\u3002" },

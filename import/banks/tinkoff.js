@@ -22,49 +22,59 @@ function normalize(header) {
   return String(header).trim().toLowerCase().replace(/ё/g, "е");
 }
 
-// PDF row reconstruction — confirmed against a real "Справка о движении
-// средств" export. Each row's date and time wrap across separate visual
-// lines within the same table cell ("19.07.2026" then "08:37" on the next
-// line), so a plain single-line date+amount search (the generic fallback
-// in parsers/pdf-parser.js) never finds anything. Т-Банк repeats the date
-// and time twice per row (operation date/time, then processing date/time)
-// — that four-token sequence is a reliable anchor marking where each row
-// starts, regardless of how the description text wraps around it.
-const ROW_ANCHOR_RE = /(\d{2}\.\d{2}\.\d{4})\s+(\d{2}:\d{2})\s+(\d{2}\.\d{2}\.\d{4})\s+(\d{2}:\d{2})/g;
-const AMOUNT_RE = /[-+]\d[\d\s\u00a0']*[.,]\d{2}/;
+// PDF row reconstruction — handles two confirmed real-world Т-Банк PDF
+// layouts, which differ in where the two times land:
+//   (a) "Справка о движении средств": both dates + both amounts + the start
+//       of the description share one visual line; the two times sit ALONE
+//       on the very next line, followed by any wrapped description text.
+//         "19.07.2026 19.07.2026 -2 247.76 ₽ -2 247.76 ₽ AIA*5ka MOSCOW 7342"
+//         "08:37 08:43 RU"
+//   (b) a regular card statement export, where each date is immediately
+//       followed by its own time on the SAME line as everything else.
+//         "19.07.2026 08:37 19.07.2026 08:43 -2 247.76 ₽ -2 247.76 ₽ ... 7342"
+// The line-start anchor (two DD.MM.YYYY dates, each with an optional
+// same-line HH:MM) covers both; when the time wasn't already on the anchor
+// line, it's pulled from the next line instead, together with any wrapped
+// description text after it.
+const DATE_LINE_RE = /^(\d{2}\.\d{2}\.\d{4})(?:\s+(\d{2}:\d{2}))?\s+\d{2}\.\d{2}\.\d{4}(?:\s+\d{2}:\d{2})?\s+([-+]\d[\d\s\u00a0']*[.,]\d{2})\s*\S*\s*[-+]\d[\d\s\u00a0']*[.,]\d{2}\s*\S*\s*(.*)$/;
+const TIME_PAIR_RE = /^(\d{2}:\d{2})\s+(\d{2}:\d{2})\s*(.*)$/;
+const CARD_TAIL_RE = /\s+\d{4}\s*$/;
 
 /**
- * @param {string} flatText - full document text (extractPdfText's flatText)
+ * @param {string} flatText - full document text (extractPdfText's flatText,
+ *   lines joined by \n — pdf-parser.js's own visual-line grouping)
  * @returns {Array<{date: string, description: string, amount: string}>}
  */
 export function extractPdfRows(flatText) {
-  const flat = flatText.replace(/\s+/g, " ").trim();
-  const anchors = [...flat.matchAll(ROW_ANCHOR_RE)];
+  const lines = flatText.split("\n").map((l) => l.trim()).filter(Boolean);
   const rows = [];
 
-  for (let i = 0; i < anchors.length; i++) {
-    const start = anchors[i].index + anchors[i][0].length;
-    const end = i + 1 < anchors.length ? anchors[i + 1].index : flat.length;
-    const chunk = flat.slice(start, end).trim();
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(DATE_LINE_RE);
+    if (!m) continue;
 
-    const amountMatch = chunk.match(AMOUNT_RE);
-    if (!amountMatch) continue;
+    const [, opDate, timeOnSameLine, amount, descStart] = m;
+    // Strip the trailing 4-digit card number from whatever description text
+    // landed on the anchor line itself.
+    let description = descStart.replace(CARD_TAIL_RE, "").trim();
 
-    // The amount appears twice (operation currency, then card currency —
-    // the same value on a ruble-only statement); the description is
-    // whatever's left after both, with the currency sign and the trailing
-    // 4-digit card number stripped.
-    const afterFirst = chunk.slice(amountMatch.index + amountMatch[0].length);
-    const secondMatch = afterFirst.match(AMOUNT_RE);
-    let description = secondMatch ? afterFirst.slice(secondMatch.index + secondMatch[0].length) : afterFirst;
-    description = description
-      .replace(/\u20bd/g, " ")
-      .replace(/\s*\d{4}\s*$/, "")
-      .replace(/\s+/g, " ")
-      .trim();
+    // Only pull from the next line when this layout didn't already have the
+    // time inline (layout a) — otherwise the next line is the following
+    // transaction's own anchor and must be left alone.
+    if (!timeOnSameLine) {
+      const next = lines[i + 1];
+      if (next) {
+        const timeMatch = next.match(TIME_PAIR_RE);
+        if (timeMatch) {
+          const continuation = timeMatch[3].replace(CARD_TAIL_RE, "").trim();
+          if (continuation) description = `${description} ${continuation}`.trim();
+          i++; // this line is consumed as part of the current row
+        }
+      }
+    }
 
     if (!description) continue;
-    rows.push({ date: anchors[i][1], amount: amountMatch[0], description });
+    rows.push({ date: opDate, amount, description });
   }
   return rows;
 }

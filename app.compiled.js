@@ -329,8 +329,22 @@ function themeClassName(theme) {
   if (!theme || theme === "light") return "";
   return `gb-${theme.replace(/_/g, "-")}`;
 }
-const APP_VERSION = "8.1";
+const APP_VERSION = "8.3";
 const CHANGELOG = [
+  {
+    version: "8.3",
+    date: "20.07.2026",
+    greeting: "changelog_8_3_greeting",
+    items: ["changelog_8_3_1"],
+    thanks: "changelog_8_3_thanks"
+  },
+  {
+    version: "8.2",
+    date: "20.07.2026",
+    greeting: "changelog_8_2_greeting",
+    items: ["changelog_8_2_1"],
+    thanks: "changelog_8_2_thanks"
+  },
   {
     version: "8.1",
     date: "20.07.2026",
@@ -960,6 +974,12 @@ const I18N = {
   whats_new_intro: { ru: "\u041E\u0442 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u0430:", en: "From the developer:", zh: "\u6765\u81EA\u5F00\u53D1\u8005:" },
   whats_new_close: { ru: "\u041F\u043E\u043D\u044F\u0442\u043D\u043E", en: "Got it", zh: "\u77E5\u9053\u4E86" },
   previous_updates_label: { ru: "\u041F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0438\u0435 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F", en: "Previous updates", zh: "\u4EE5\u5F80\u66F4\u65B0" },
+  changelog_8_3_greeting: { ru: "Импорт PDF и CSV теперь совпадает", en: "PDF and CSV imports now match", zh: "PDF 与 CSV 导入结果现已一致" },
+  changelog_8_3_1: { ru: "Входящие переводы от других людей в PDF-выписках Т-Банка раньше ошибочно принимались за перевод на свой же счёт и пропадали из дохода. Теперь они учитываются правильно, а итоги по PDF и CSV-выпискам совпадают.", en: "Incoming transfers from other people in Т-Bank PDF statements were previously mistaken for transfers to your own account and dropped from income. They're now counted correctly, and PDF and CSV statement totals now match.", zh: "此前，Т-Bank PDF 对账单中来自他人的转账收入被误判为本人账户间转账，未计入收入。现在这类收入会被正确统计，PDF 与 CSV 对账单的合计金额也保持一致。" },
+  changelog_8_3_thanks: { ru: "Спасибо за подробную проверку по двум выпискам сразу — без этого сравнения расхождение было бы сложно найти.", en: "Thanks for the careful cross-check across both statement formats — that comparison is what made the mismatch easy to pin down.", zh: "感谢您对两种对账单格式进行细致的交叉核对——正是这一比对让问题得以被精准定位。" },
+  changelog_8_2_greeting: { ru: "Поступления больше не теряются при импорте", en: "Incoming transfers no longer get dropped on import", zh: "导入时不再遗漏收款" },
+  changelog_8_2_1: { ru: "Некоторые виды поступлений — например, с депозита или копилки — раньше ошибочно не учитывались как доход при импорте выписки. Теперь они попадают в статистику корректно.", en: "Some kinds of incoming transfers — for example from a deposit or savings pocket — were previously left out of your income when importing a statement. They're now counted correctly.", zh: "此前，部分类型的收款（例如来自存款或储蓄账户的转入）在导入对账单时未被计入收入。现在这些收入会被正确统计。" },
+  changelog_8_2_thanks: { ru: "Спасибо, что заметили расхождение в цифрах — это помогло быстро найти и поправить.", en: "Thanks for spotting the mismatch in the numbers — it helped us find and fix this quickly.", zh: "感谢您发现数字上的差异——这帮助我们快速定位并修复了问题。" },
   changelog_8_1_greeting: { ru: "Точнее распознаём выписки Т-Банка", en: "More accurate Т-Bank statement recognition", zh: "更精确地识别 Т-Bank 对账单" },
   changelog_8_1_1: { ru: "Справка о движении средств в формате PDF теперь распознаётся корректно — все операции подгружаются, ни одна не теряется.", en: "PDF account statements are now recognized correctly — every transaction is picked up, none get missed.", zh: "PDF 格式的账户对账单现在可以正确识别——所有交易都会被读取，不会遗漏。" },
   changelog_8_1_thanks: { ru: "Спасибо всем, кто прислал такие выписки для проверки — это помогло найти и закрыть пробел.", en: "Thanks to everyone who sent in statements like this for testing — it helped find and close the gap.", zh: "感谢提供此类对账单进行测试的用户——这帮助我们发现并修复了问题。" },

@@ -108,21 +108,19 @@ export function matchCategory(description) {
 // Detection is deliberately conservative: it only flags the wording banks
 // themselves use for their OWN internal transfers, never generic "Переводы"
 // entries with a person's name attached (those are real spending).
+//
+// "Перевод себе" is deliberately NOT included here: confirmed against a real
+// Т-Банк "Справка о движении средств" (PDF statement), every single instance
+// of that exact wording was an incoming P2P transfer FROM another person
+// (Т-Банк's PDF export anonymizes the sender's name that a CSV/XLSX export
+// of the same operations shows), not money moved to the user's own second
+// account — real income, not a self-transfer.
 // ============================================================================
 const SELF_TRANSFER_PATTERNS = [
   /между\s+(своими\s+)?счетами/i,
-  /перевод\s+(себе|самому\s+себе|на\s+свой\s+счет)/i,
   /пополнение\s+своего\s+счета/i,
   /own\s+account/i,
   /internal\s+transfer/i,
-  // Т-Банк's own wording for moving money to/from the user's own linked
-  // savings account ("договор" here means the user's own deposit/savings
-  // agreement, not a payment to another party) — confirmed from a real
-  // statement. Note: [а-яё]*, not \w* — \w in JS regex only matches
-  // [A-Za-z0-9_], never Cyrillic letters, so \w* here would silently match
-  // nothing after the first few Latin-range characters.
-  /внутренн[а-яё]*\s+перевод\s+на\s+договор/i,
-  /внутрибанковск[а-яё]*\s+перевод\s+с\s+договора/i,
 ];
 
 /**

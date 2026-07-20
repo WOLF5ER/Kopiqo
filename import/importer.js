@@ -31,8 +31,8 @@ function isLikelyDuplicate(candidate, existing) {
  * @param {{ accountId: string, existingTransactions: object[] }} opts
  * @returns {Promise<{
  *   ok: true,
- *   rows: Array<{ tx: object, status: "new"|"duplicate"|"skipped", reason?: string }>,
- *   newCount: number, duplicateCount: number, skippedCount: number,
+ *   rows: Array<{ tx: object, status: "new"|"duplicate"|"skipped"|"transfer", reason?: string }>,
+ *   newCount: number, duplicateCount: number, skippedCount: number, transferCount: number,
  * } | { ok: false, reason: string }>}
  */
 export async function importStatementFile(file, opts) {
@@ -61,18 +61,24 @@ export async function importStatementFile(file, opts) {
 
   const existing = opts.existingTransactions || [];
   const rows = [];
-  let newCount = 0, duplicateCount = 0, skippedCount = 0;
+  let newCount = 0, duplicateCount = 0, skippedCount = 0, transferCount = 0;
 
   for (const row of parsed.rows) {
     const raw = {
       date: row[columns.dateIdx],
       description: row[columns.descriptionIdx],
       amount: row[columns.amountIdx],
+      bankCategory: columns.categoryIdx !== -1 ? row[columns.categoryIdx] : undefined,
     };
     const result = normalizeRow(raw, { accountId: opts.accountId });
     if (!result.ok) {
-      skippedCount++;
-      rows.push({ tx: null, status: "skipped", reason: result.reason });
+      if (result.reason === "self_transfer") {
+        transferCount++;
+        rows.push({ tx: null, status: "transfer", reason: result.reason });
+      } else {
+        skippedCount++;
+        rows.push({ tx: null, status: "skipped", reason: result.reason });
+      }
       continue;
     }
     const isDup = existing.some((e) => isLikelyDuplicate(result.tx, e))
@@ -86,5 +92,5 @@ export async function importStatementFile(file, opts) {
     }
   }
 
-  return { ok: true, rows, newCount, duplicateCount, skippedCount };
+  return { ok: true, rows, newCount, duplicateCount, skippedCount, transferCount };
 }

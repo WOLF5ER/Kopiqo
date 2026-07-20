@@ -7,7 +7,7 @@
 // everything else.
 // ============================================================================
 
-import { matchCategory } from "./category-matcher.js";
+import { matchCategory, matchCategoryFromBankLabel, isLikelySelfTransfer } from "./category-matcher.js";
 
 const MONTHS_RU = { "янв": 1, "фев": 2, "мар": 3, "апр": 4, "май": 5, "мая": 5, "июн": 6, "июл": 7, "авг": 8, "сен": 9, "окт": 10, "ноя": 11, "дек": 12 };
 
@@ -74,7 +74,7 @@ export function parseStatementAmount(value) {
 }
 
 /**
- * @param {{date: any, description: string, amount: any}} raw
+ * @param {{date: any, description: string, amount: any, bankCategory?: string}} raw
  * @param {{accountId: string}} opts
  * @returns {{ ok: true, tx: object } | { ok: false, reason: string }}
  */
@@ -88,9 +88,19 @@ export function normalizeRow(raw, opts) {
   const description = String(raw.description || "").trim();
   if (!description) return { ok: false, reason: "bad_description" };
 
+  // Moving money between the user's own accounts isn't income or an
+  // expense — it's the same money, just relocated. Importing it as either
+  // would inflate both totals for nothing that was actually earned or
+  // spent, so these are flagged separately rather than categorized at all.
+  if (isLikelySelfTransfer(description)) {
+    return { ok: false, reason: "self_transfer" };
+  }
+
   const type = amount < 0 ? "expense" : "income";
   const absAmount = Math.abs(amount);
-  const category = type === "expense" ? matchCategory(description) : "other_inc";
+  const category = type === "expense"
+    ? (matchCategoryFromBankLabel(raw.bankCategory) || matchCategory(description))
+    : "other_inc";
 
   return {
     ok: true,

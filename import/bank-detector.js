@@ -18,6 +18,7 @@ const ALIASES = {
     "сумма", "amount", "сумма операции", "сумма в валюте счета", "сумма платежа",
     "value", "сумма операции в валюте счёта",
   ],
+  category: ["категория", "category", "тип операции"],
 };
 
 function normalize(header) {
@@ -26,9 +27,11 @@ function normalize(header) {
 
 /**
  * @param {string[]} headers
- * @returns {{ dateIdx: number, descriptionIdx: number, amountIdx: number } | null}
- *   Indices into the headers/rows arrays, or null if any required field
- *   couldn't be matched.
+ * @returns {{ dateIdx: number, descriptionIdx: number, amountIdx: number, categoryIdx: number }| null}
+ *   Indices into the headers/rows arrays, or null if any REQUIRED field
+ *   (date/description/amount) couldn't be matched. categoryIdx is -1 when
+ *   the statement has no category column of its own — that's fine, it's
+ *   optional; the importer falls back to keyword matching in that case.
  */
 export function detectColumns(headers) {
   const normalized = headers.map(normalize);
@@ -50,7 +53,8 @@ export function detectColumns(headers) {
   const dateIdx = findIdx("date");
   const descriptionIdx = findIdx("description");
   const amountIdx = findIdx("amount");
+  const categoryIdx = findIdx("category");
 
   if (dateIdx === -1 || descriptionIdx === -1 || amountIdx === -1) return null;
-  return { dateIdx, descriptionIdx, amountIdx };
+  return { dateIdx, descriptionIdx, amountIdx, categoryIdx };
 }

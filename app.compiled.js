@@ -603,6 +603,7 @@ const I18N = {
   import_preview_new: { ru: "\u041D\u043E\u0432\u044B\u0445", en: "New", zh: "\u65B0\u589E" },
   import_preview_duplicates: { ru: "\u0414\u0443\u0431\u043B\u0438\u043A\u0430\u0442\u044B (\u043D\u0435 \u0431\u0443\u0434\u0443\u0442 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u044B)", en: "Duplicates (won't be added)", zh: "\u91CD\u590D\u9879(\u4E0D\u4F1A\u6DFB\u52A0)" },
   import_preview_skipped: { ru: "\u041F\u0440\u043E\u043F\u0443\u0449\u0435\u043D\u043E (\u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0440\u0430\u0441\u043F\u043E\u0437\u043D\u0430\u0442\u044C)", en: "Skipped (couldn't be read)", zh: "\u5DF2\u8DF3\u8FC7(\u65E0\u6CD5\u8BC6\u522B)" },
+  import_preview_transfers: { ru: "\u041F\u0435\u0440\u0435\u0432\u043E\u0434\u044B \u043C\u0435\u0436\u0434\u0443 \u0441\u0432\u043E\u0438\u043C\u0438 \u0441\u0447\u0435\u0442\u0430\u043C\u0438 (\u043D\u0435 \u0443\u0447\u0442\u0435\u043D\u044B)", en: "Transfers between your own accounts (not counted)", zh: "\u81EA\u6709\u8D26\u6237\u95F4\u7684\u8F6C\u8D26(\u672A\u8BA1\u5165)" },
   import_col_date: { ru: "\u0414\u0430\u0442\u0430", en: "Date", zh: "\u65E5\u671F" },
   import_col_name: { ru: "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435", en: "Name", zh: "\u540D\u79F0" },
   import_col_amount: { ru: "\u0421\u0443\u043C\u043C\u0430", en: "Amount", zh: "\u91D1\u989D" },
@@ -5572,6 +5573,11 @@ function StatementImportModal({ onClose, onImport, accounts, transactions, curre
           t("import_preview_skipped"),
           ": ",
           result.skippedCount
+        ] }),
+        result.transferCount > 0 && /* @__PURE__ */ jsxs("span", { className: "gb-import-summary-transfer", children: [
+          t("import_preview_transfers"),
+          ": ",
+          result.transferCount
         ] })
       ] }),
       newRows.length === 0 ? /* @__PURE__ */ jsx("p", { className: "gb-modal-note", children: t("import_nothing_to_import") }) : /* @__PURE__ */ jsx("div", { className: "gb-import-table-wrap", children: /* @__PURE__ */ jsxs("table", { className: "gb-import-table", children: [
@@ -6732,6 +6738,7 @@ function Styles() {
       .gb-import-summary-new { color: var(--sage-text); font-weight: 600; }
       .gb-import-summary-dup { color: var(--honey-text); }
       .gb-import-summary-skip { color: var(--rose-text); }
+      .gb-import-summary-transfer { color: var(--powder-text); }
       .gb-import-table-wrap { max-height: 320px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; }
       .gb-import-table { width: 100%; border-collapse: collapse; font-size: 12px; }
       .gb-import-table th { position: sticky; top: 0; background: var(--surface2); color: var(--muted); text-align: left; padding: 8px 10px; font-weight: 600; white-space: nowrap; }

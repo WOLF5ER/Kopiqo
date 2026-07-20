@@ -77,3 +77,65 @@ export function matchCategory(description) {
   }
   return FALLBACK_CATEGORY_ID;
 }
+
+// ============================================================================
+// Bank-provided category labels — many statements (T-Bank/Tinkoff included)
+// already classify each transaction themselves ("Фастфуд", "Заправки",
+// "Супермаркеты", ...). That's a far more reliable signal than guessing from
+// the merchant name, so when a statement has its own Category column,
+// importer.js prefers this mapping over matchCategory() above — the keyword
+// matcher only kicks in as a fallback for statements without one, or for a
+// bank label this table doesn't recognize yet.
+//
+// Extending for another bank's label set is additive: add its labels
+// (lowercased) to the relevant entry below.
+// ============================================================================
+const BANK_LABEL_MAP = {
+  food: ["фастфуд", "рестораны", "супермаркеты", "продукты"],
+  transport: ["заправки", "автоуслуги", "транспорт", "такси", "каршеринг"],
+  fun: ["кино", "цифровые товары", "развлечения", "хобби"],
+  shopping: ["различные товары", "одежда и обувь", "цветы", "маркетплейс"],
+  health: ["аптеки", "медицина", "красота"],
+  housing: ["жкх и связь", "коммунальные услуги"],
+  other_exp: ["сервис", "финансы", "переводы", "наличные", "госуслуги", "животные", "другое", "прочее"],
+};
+
+/**
+ * @param {string} bankLabel - the statement's own category value for a row
+ * @returns {string|null} a Kopiqo expense category id, or null if this bank
+ *   label isn't recognized (caller should fall back to matchCategory())
+ */
+export function matchCategoryFromBankLabel(bankLabel) {
+  const text = String(bankLabel || "").trim().toLowerCase();
+  if (!text) return null;
+  for (const [categoryId, labels] of Object.entries(BANK_LABEL_MAP)) {
+    if (labels.includes(text)) return categoryId;
+  }
+  return null;
+}
+
+// ============================================================================
+// Self-transfers — moving money between the user's own accounts/cards. These
+// must NOT be counted as ordinary income/expense (they'd inflate both
+// totals for money that never actually left the person's own pocket), which
+// is a different thing from a P2P payment to someone else (a real expense).
+// Detection is deliberately conservative: it only flags the wording banks
+// themselves use for their OWN internal transfers, never generic "Переводы"
+// entries with a person's name attached (those are real spending).
+// ============================================================================
+const SELF_TRANSFER_PATTERNS = [
+  /между\s+(своими\s+)?счетами/i,
+  /перевод\s+(себе|самому\s+себе|на\s+свой\s+счет)/i,
+  /пополнение\s+своего\s+счета/i,
+  /own\s+account/i,
+  /internal\s+transfer/i,
+];
+
+/**
+ * @param {string} description
+ * @returns {boolean}
+ */
+export function isLikelySelfTransfer(description) {
+  const text = String(description || "");
+  return SELF_TRANSFER_PATTERNS.some((re) => re.test(text));
+}

@@ -21,6 +21,7 @@ const ALIASES = {
     "value", "сумма операции в валюте счёта",
   ],
   category: ["категория", "category", "тип операции"],
+  status: ["статус", "status", "статус операции", "статус платежа"],
 };
 
 function normalize(header) {
@@ -66,9 +67,10 @@ export function getColumnMapping(headers) {
   const descriptionIdx = findIdx("description");
   const amountIdx = findIdx("amount");
   const categoryIdx = findIdx("category");
+  const statusIdx = findIdx("status");
 
   if (dateIdx === -1 || descriptionIdx === -1 || amountIdx === -1) return null;
-  return { dateIdx, descriptionIdx, amountIdx, categoryIdx };
+  return { dateIdx, descriptionIdx, amountIdx, categoryIdx, statusIdx };
 }
 
 // No bank-specific category vocabulary — the universal adapter leaves

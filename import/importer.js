@@ -15,6 +15,7 @@ import { extractPdfText, defaultRowExtractor } from "./parsers/pdf-parser.js";
 import { detectBank, detectBankFromText } from "./detector.js";
 import { normalizeRow } from "./normalizer.js";
 import { isDuplicateAgainst } from "./duplicate-checker.js";
+import { linkTransferPairs } from "./transfer-linker.js";
 import { buildPreview } from "./preview.js";
 
 /**
@@ -30,12 +31,27 @@ async function readTabularFile(file, isXlsx) {
     return { ok: false, reason: "columns_not_recognized" };
   }
   const { bank, columns } = detected;
-  const rawRows = parsed.rows.map((row) => ({
-    date: row[columns.dateIdx],
-    description: row[columns.descriptionIdx],
-    amount: row[columns.amountIdx],
-    bankCategory: columns.categoryIdx !== -1 ? row[columns.categoryIdx] : undefined,
-  }));
+  // A "Статус"/status column, when the bank's export has one, marks
+  // operations the bank itself never completed (declined, reversed) — those
+  // never actually moved money and must not be imported as real spending.
+  // Only rows explicitly NOT ok are dropped; unrecognized status text is
+  // kept rather than silently discarded, since a stricter allow-list would
+  // risk losing legitimate rows over wording Kopiqo doesn't yet know.
+  const statusIdx = columns.statusIdx;
+  const hasStatusColumn = typeof statusIdx === "number" && statusIdx !== -1;
+  const FAILED_STATUS_RE = /^(failed|declined|отклон|отмен|ошибк|error)/i;
+  const rawRows = parsed.rows
+    .filter((row) => {
+      if (!hasStatusColumn) return true;
+      const status = String(row[statusIdx] || "").trim();
+      return !FAILED_STATUS_RE.test(status);
+    })
+    .map((row) => ({
+      date: row[columns.dateIdx],
+      description: row[columns.descriptionIdx],
+      amount: row[columns.amountIdx],
+      bankCategory: columns.categoryIdx !== -1 ? row[columns.categoryIdx] : undefined,
+    }));
   return { ok: true, rawRows, bank };
 }
 
@@ -80,21 +96,34 @@ export async function importStatementFile(file, opts) {
   const { rawRows, bank } = read;
 
   const existing = opts.existingTransactions || [];
-  const rows = [];
-  const acceptedSoFar = [];
 
-  for (const raw of rawRows) {
+  // Pass 1 — normalize every raw row. Rows the wording list already
+  // recognizes as self-transfers are flagged here; everything readable
+  // starts out "new".
+  const rows = rawRows.map((raw) => {
     const result = normalizeRow(raw, { accountId: opts.accountId, bank });
     if (!result.ok) {
       const status = result.reason === "self_transfer" ? "transfer" : "skipped";
-      rows.push({ tx: null, status, reason: result.reason });
-      continue;
+      return { tx: null, status, reason: result.reason };
     }
-    if (isDuplicateAgainst(result.tx, existing, acceptedSoFar)) {
-      rows.push({ tx: result.tx, status: "duplicate" });
-    } else {
-      acceptedSoFar.push(result.tx);
-      rows.push({ tx: result.tx, status: "new" });
+    return { tx: result.tx, status: "new" };
+  });
+
+  // Pass 2 — link transfer pairs by money movement (see transfer-linker.js).
+  // Runs BEFORE dedup so both legs of an internal transfer get flagged even
+  // when one of them would otherwise collide with an existing transaction.
+  linkTransferPairs(rows);
+
+  // Pass 3 — dedup what's still "new" against the account's EXISTING
+  // transactions only. Deliberately NOT against other rows of this same
+  // batch: banks don't list one operation twice in one statement, so
+  // identical rows inside a single file are real repeats (confirmed case:
+  // three identical purchase refunds in the same minute) — deduping them
+  // against each other silently loses real money.
+  for (const row of rows) {
+    if (row.status !== "new") continue;
+    if (isDuplicateAgainst(row.tx, existing, [])) {
+      row.status = "duplicate";
     }
   }
 

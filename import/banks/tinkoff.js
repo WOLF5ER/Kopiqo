@@ -104,7 +104,7 @@ export function detect(headers) {
 
 /**
  * @param {string[]} headers
- * @returns {{ dateIdx: number, descriptionIdx: number, amountIdx: number, categoryIdx: number } | null}
+ * @returns {{ dateIdx: number, descriptionIdx: number, amountIdx: number, categoryIdx: number, statusIdx: number } | null}
  */
 export function getColumnMapping(headers) {
   const normalized = headers.map(normalize);
@@ -112,9 +112,10 @@ export function getColumnMapping(headers) {
   const descriptionIdx = normalized.indexOf("описание");
   const amountIdx = normalized.indexOf("сумма операции");
   const categoryIdx = normalized.indexOf("категория");
+  const statusIdx = normalized.indexOf("статус");
 
   if (dateIdx === -1 || descriptionIdx === -1 || amountIdx === -1) return null;
-  return { dateIdx, descriptionIdx, amountIdx, categoryIdx };
+  return { dateIdx, descriptionIdx, amountIdx, categoryIdx, statusIdx };
 }
 
 // Т-Банк's own category vocabulary (the "Категория" column's actual

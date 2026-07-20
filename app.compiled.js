@@ -329,8 +329,15 @@ function themeClassName(theme) {
   if (!theme || theme === "light") return "";
   return `gb-${theme.replace(/_/g, "-")}`;
 }
-const APP_VERSION = "8.3";
+const APP_VERSION = "8.4";
 const CHANGELOG = [
+  {
+    version: "8.4",
+    date: "20.07.2026",
+    greeting: "changelog_8_4_greeting",
+    items: ["changelog_8_4_1", "changelog_8_4_2", "changelog_8_4_3"],
+    thanks: "changelog_8_4_thanks"
+  },
   {
     version: "8.3",
     date: "20.07.2026",
@@ -974,6 +981,11 @@ const I18N = {
   whats_new_intro: { ru: "\u041E\u0442 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u0430:", en: "From the developer:", zh: "\u6765\u81EA\u5F00\u53D1\u8005:" },
   whats_new_close: { ru: "\u041F\u043E\u043D\u044F\u0442\u043D\u043E", en: "Got it", zh: "\u77E5\u9053\u4E86" },
   previous_updates_label: { ru: "\u041F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0438\u0435 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F", en: "Previous updates", zh: "\u4EE5\u5F80\u66F4\u65B0" },
+  changelog_8_4_greeting: { ru: "Импорт стал заметно умнее", en: "Import just got noticeably smarter", zh: "导入功能显著升级" },
+  changelog_8_4_1: { ru: "Kopiqo теперь сам находит пары внутренних переводов по движению денег: если сумма ушла с одной вашей карты и в тот же день пришла на другую — обе записи помечаются как перевод и не искажают доходы и расходы, в каком бы банке и какими бы словами это ни называлось.", en: "Kopiqo now spots internal transfer pairs by the money itself: when an amount leaves one of your cards and lands on another the same day, both legs are marked as a transfer and stay out of your income and expenses — whatever bank it is and whatever wording it uses.", zh: "Kopiqo 现在能根据资金流向自动识别内部转账对：当一笔金额从您的一张卡转出并于当天到达另一张卡时，两条记录都会被标记为转账，不再影响收支统计——无论是哪家银行、使用何种描述。" },
+  changelog_8_4_2: { ru: "Загрузка PDF и CSV одного и того же периода больше не задваивает операции: одинаковые платежи распознаются как один даже когда две выгрузки описывают их по-разному.", en: "Importing a PDF and a CSV of the same period no longer doubles operations: identical payments are recognized as one even when the two exports describe them differently.", zh: "导入同一时期的 PDF 和 CSV 不再产生重复记录：即使两种导出格式的描述不同，相同的交易也会被识别为同一笔。" },
+  changelog_8_4_3: { ru: "Исправлены две ошибки: настоящие повторные операции (например, несколько одинаковых возвратов за минуту) больше не пропадают при импорте, а отклонённые банком операции больше не попадают в расходы.", en: "Two bugs fixed: genuine repeated operations (like several identical refunds within a minute) no longer vanish on import, and operations the bank declined no longer count as spending.", zh: "修复两个问题：真实的重复交易（如一分钟内多笔相同退款）导入时不再丢失；被银行拒绝的交易不再计入支出。" },
+  changelog_8_4_thanks: { ru: "Спасибо за терпеливую сверку выписок до копейки — благодаря ей импорт теперь считает деньги так же строго, как банк.", en: "Thanks for patiently reconciling the statements down to the kopeck — it's why import now counts money as strictly as the bank does.", zh: "感谢您耐心地将对账单核对到分毫——正因如此，导入功能现在能像银行一样严谨地计算每一笔钱。" },
   changelog_8_3_greeting: { ru: "Импорт PDF и CSV теперь совпадает", en: "PDF and CSV imports now match", zh: "PDF 与 CSV 导入结果现已一致" },
   changelog_8_3_1: { ru: "Входящие переводы от других людей в PDF-выписках Т-Банка раньше ошибочно принимались за перевод на свой же счёт и пропадали из дохода. Теперь они учитываются правильно, а итоги по PDF и CSV-выпискам совпадают.", en: "Incoming transfers from other people in Т-Bank PDF statements were previously mistaken for transfers to your own account and dropped from income. They're now counted correctly, and PDF and CSV statement totals now match.", zh: "此前，Т-Bank PDF 对账单中来自他人的转账收入被误判为本人账户间转账，未计入收入。现在这类收入会被正确统计，PDF 与 CSV 对账单的合计金额也保持一致。" },
   changelog_8_3_thanks: { ru: "Спасибо за подробную проверку по двум выпискам сразу — без этого сравнения расхождение было бы сложно найти.", en: "Thanks for the careful cross-check across both statement formats — that comparison is what made the mismatch easy to pin down.", zh: "感谢您对两种对账单格式进行细致的交叉核对——正是这一比对让问题得以被精准定位。" },

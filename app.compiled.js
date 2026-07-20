@@ -1,11 +1,6 @@
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
-  buildEngine as fiBuildEngine,
-  normalizeDataset as fiNormalizeDataset,
-  MONTHS_RU,
-} from "./financial-intelligence/engine.js";
-import {
   PieChart,
   Pie,
   Cell,
@@ -334,8 +329,29 @@ function themeClassName(theme) {
   if (!theme || theme === "light") return "";
   return `gb-${theme.replace(/_/g, "-")}`;
 }
-const APP_VERSION = "8.0";
+const APP_VERSION = "8.4";
 const CHANGELOG = [
+  {
+    version: "8.4",
+    date: "20.07.2026",
+    greeting: "changelog_8_4_greeting",
+    items: ["changelog_8_4_1", "changelog_8_4_2", "changelog_8_4_3"],
+    thanks: "changelog_8_4_thanks"
+  },
+  {
+    version: "8.3",
+    date: "20.07.2026",
+    greeting: "changelog_8_3_greeting",
+    items: ["changelog_8_3_1"],
+    thanks: "changelog_8_3_thanks"
+  },
+  {
+    version: "8.2",
+    date: "20.07.2026",
+    greeting: "changelog_8_2_greeting",
+    items: ["changelog_8_2_1"],
+    thanks: "changelog_8_2_thanks"
+  },
   {
     version: "8.1",
     date: "20.07.2026",
@@ -965,6 +981,17 @@ const I18N = {
   whats_new_intro: { ru: "\u041E\u0442 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u0430:", en: "From the developer:", zh: "\u6765\u81EA\u5F00\u53D1\u8005:" },
   whats_new_close: { ru: "\u041F\u043E\u043D\u044F\u0442\u043D\u043E", en: "Got it", zh: "\u77E5\u9053\u4E86" },
   previous_updates_label: { ru: "\u041F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0438\u0435 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F", en: "Previous updates", zh: "\u4EE5\u5F80\u66F4\u65B0" },
+  changelog_8_4_greeting: { ru: "Импорт стал заметно умнее", en: "Import just got noticeably smarter", zh: "导入功能显著升级" },
+  changelog_8_4_1: { ru: "Kopiqo теперь сам находит пары внутренних переводов по движению денег: если сумма ушла с одной вашей карты и в тот же день пришла на другую — обе записи помечаются как перевод и не искажают доходы и расходы, в каком бы банке и какими бы словами это ни называлось.", en: "Kopiqo now spots internal transfer pairs by the money itself: when an amount leaves one of your cards and lands on another the same day, both legs are marked as a transfer and stay out of your income and expenses — whatever bank it is and whatever wording it uses.", zh: "Kopiqo 现在能根据资金流向自动识别内部转账对：当一笔金额从您的一张卡转出并于当天到达另一张卡时，两条记录都会被标记为转账，不再影响收支统计——无论是哪家银行、使用何种描述。" },
+  changelog_8_4_2: { ru: "Загрузка PDF и CSV одного и того же периода больше не задваивает операции: одинаковые платежи распознаются как один даже когда две выгрузки описывают их по-разному.", en: "Importing a PDF and a CSV of the same period no longer doubles operations: identical payments are recognized as one even when the two exports describe them differently.", zh: "导入同一时期的 PDF 和 CSV 不再产生重复记录：即使两种导出格式的描述不同，相同的交易也会被识别为同一笔。" },
+  changelog_8_4_3: { ru: "Исправлены две ошибки: настоящие повторные операции (например, несколько одинаковых возвратов за минуту) больше не пропадают при импорте, а отклонённые банком операции больше не попадают в расходы.", en: "Two bugs fixed: genuine repeated operations (like several identical refunds within a minute) no longer vanish on import, and operations the bank declined no longer count as spending.", zh: "修复两个问题：真实的重复交易（如一分钟内多笔相同退款）导入时不再丢失；被银行拒绝的交易不再计入支出。" },
+  changelog_8_4_thanks: { ru: "Спасибо за терпеливую сверку выписок до копейки — благодаря ей импорт теперь считает деньги так же строго, как банк.", en: "Thanks for patiently reconciling the statements down to the kopeck — it's why import now counts money as strictly as the bank does.", zh: "感谢您耐心地将对账单核对到分毫——正因如此，导入功能现在能像银行一样严谨地计算每一笔钱。" },
+  changelog_8_3_greeting: { ru: "Импорт PDF и CSV теперь совпадает", en: "PDF and CSV imports now match", zh: "PDF 与 CSV 导入结果现已一致" },
+  changelog_8_3_1: { ru: "Входящие переводы от других людей в PDF-выписках Т-Банка раньше ошибочно принимались за перевод на свой же счёт и пропадали из дохода. Теперь они учитываются правильно, а итоги по PDF и CSV-выпискам совпадают.", en: "Incoming transfers from other people in Т-Bank PDF statements were previously mistaken for transfers to your own account and dropped from income. They're now counted correctly, and PDF and CSV statement totals now match.", zh: "此前，Т-Bank PDF 对账单中来自他人的转账收入被误判为本人账户间转账，未计入收入。现在这类收入会被正确统计，PDF 与 CSV 对账单的合计金额也保持一致。" },
+  changelog_8_3_thanks: { ru: "Спасибо за подробную проверку по двум выпискам сразу — без этого сравнения расхождение было бы сложно найти.", en: "Thanks for the careful cross-check across both statement formats — that comparison is what made the mismatch easy to pin down.", zh: "感谢您对两种对账单格式进行细致的交叉核对——正是这一比对让问题得以被精准定位。" },
+  changelog_8_2_greeting: { ru: "Поступления больше не теряются при импорте", en: "Incoming transfers no longer get dropped on import", zh: "导入时不再遗漏收款" },
+  changelog_8_2_1: { ru: "Некоторые виды поступлений — например, с депозита или копилки — раньше ошибочно не учитывались как доход при импорте выписки. Теперь они попадают в статистику корректно.", en: "Some kinds of incoming transfers — for example from a deposit or savings pocket — were previously left out of your income when importing a statement. They're now counted correctly.", zh: "此前，部分类型的收款（例如来自存款或储蓄账户的转入）在导入对账单时未被计入收入。现在这些收入会被正确统计。" },
+  changelog_8_2_thanks: { ru: "Спасибо, что заметили расхождение в цифрах — это помогло быстро найти и поправить.", en: "Thanks for spotting the mismatch in the numbers — it helped us find and fix this quickly.", zh: "感谢您发现数字上的差异——这帮助我们快速定位并修复了问题。" },
   changelog_8_1_greeting: { ru: "Точнее распознаём выписки Т-Банка", en: "More accurate Т-Bank statement recognition", zh: "更精确地识别 Т-Bank 对账单" },
   changelog_8_1_1: { ru: "Справка о движении средств в формате PDF теперь распознаётся корректно — все операции подгружаются, ни одна не теряется.", en: "PDF account statements are now recognized correctly — every transaction is picked up, none get missed.", zh: "PDF 格式的账户对账单现在可以正确识别——所有交易都会被读取，不会遗漏。" },
   changelog_8_1_thanks: { ru: "Спасибо всем, кто прислал такие выписки для проверки — это помогло найти и закрыть пробел.", en: "Thanks to everyone who sent in statements like this for testing — it helped find and close the gap.", zh: "感谢提供此类对账单进行测试的用户——这帮助我们发现并修复了问题。" },
@@ -1323,8 +1350,7 @@ const AnalyticsPanel = (function() {
     gift: { name: "\u041F\u043E\u0434\u0430\u0440\u043A\u0438", color: "#BE9BB8" },
     other_inc: { name: "\u0414\u0440\u0443\u0433\u043E\u0439 \u0434\u043E\u0445\u043E\u0434", color: "#ABA58F" }
   };
-  // MONTHS_RU now comes from the top-level import (financial-intelligence/
-  // engine.js) — this closure still sees it via normal scope lookup.
+  const MONTHS_RU = ["\u044F\u043D\u0432", "\u0444\u0435\u0432", "\u043C\u0430\u0440", "\u0430\u043F\u0440", "\u043C\u0430\u0439", "\u0438\u044E\u043D", "\u0438\u044E\u043B", "\u0430\u0432\u0433", "\u0441\u0435\u043D", "\u043E\u043A\u0442", "\u043D\u043E\u044F", "\u0434\u0435\u043A"];
   const WEEKDAYS_RU = ["\u041F\u043D", "\u0412\u0442", "\u0421\u0440", "\u0427\u0442", "\u041F\u0442", "\u0421\u0431", "\u0412\u0441"];
   const C = {
     bg: "var(--bg)",
@@ -1399,17 +1425,355 @@ const AnalyticsPanel = (function() {
     }
     return out;
   }
-  // Delegates to financial-intelligence/engine.js — the single source of
-  // truth for this calculation (see that file's header for why).
   function normalizeDataset(raw, categoryTypeOverrides) {
-    return fiNormalizeDataset(raw, categoryTypeOverrides);
+    const src = raw || {};
+    const state = src.transactions ? src : src["finance:state"] ? JSON.parse(src["finance:state"]) : src;
+    const transactions = Array.isArray(state.transactions) ? state.transactions : [];
+    let budgets = {};
+    const rawB = state.budgets || {};
+    const vals = Object.values(rawB);
+    if (vals.length && typeof vals[0] === "object" && vals[0] !== null) {
+      for (const perAcc of vals)
+        for (const [cat, lim] of Object.entries(perAcc))
+          budgets[cat] = (budgets[cat] || 0) + (Number(lim) || 0);
+    } else {
+      for (const [cat, lim] of Object.entries(rawB))
+        budgets[cat] = Number(lim) || 0;
+    }
+    const custom = {};
+    (state.customCategories || []).forEach((c) => {
+      if (c && c.id)
+        custom[c.id] = { name: c.name || c.id, color: c.color || "#ABA58F", spendType: c.spendType };
+    });
+    const monthlyCatIds = /* @__PURE__ */ new Set([
+      ...Object.entries(custom).filter(([, c]) => c.spendType === "monthly").map(([id]) => id),
+      ...Object.entries(categoryTypeOverrides || {}).filter(([, v]) => v === "monthly").map(([id]) => id)
+    ]);
+    return {
+      transactions,
+      budgets,
+      customCategories: custom,
+      accounts: state.accounts || [],
+      goals: state.goals || [],
+      debts: state.debts || [],
+      recurringTemplates: state.recurringTemplates || [],
+      monthlyCatIds
+    };
   }
   const catName = (id, custom) => CAT_META[id] && CAT_META[id].name || custom[id] && custom[id].name || id;
   const catColor = (id, custom) => CAT_META[id] && CAT_META[id].color || custom[id] && custom[id].color || "#ABA58F";
-  // Delegates to financial-intelligence/engine.js — the single source of
-  // truth for this calculation (see that file's header for why).
   function buildEngine(dataset, now) {
-    return fiBuildEngine(dataset, now);
+    const { transactions, budgets, customCategories, accounts, goals, recurringTemplates, monthlyCatIds: datasetMonthly } = dataset;
+    const taggedMonthlyCatIds = datasetMonthly || /* @__PURE__ */ new Set();
+    const clean = [];
+    for (const t of transactions) {
+      if (!t || t.transferId)
+        continue;
+      if (t.category === "transfer" || t.category === "account_deleted")
+        continue;
+      const d = parseDate(t.date);
+      const amount = Number(t.amount);
+      if (!d || !Number.isFinite(amount) || amount <= 0)
+        continue;
+      if (t.type !== "expense" && t.type !== "income")
+        continue;
+      clean.push({ ...t, d, amount, mk: monthKey(d) });
+    }
+    clean.sort((a, b) => a.d - b.d);
+    const expenses = clean.filter((t) => t.type === "expense");
+    const incomes = clean.filter((t) => t.type === "income");
+    const monthSet = new Set(clean.map((t) => t.mk));
+    const curMk = monthKey(now);
+    monthSet.add(curMk);
+    const months = [...monthSet].sort();
+    const byMonth = {};
+    months.forEach((mk) => byMonth[mk] = { mk, income: 0, expense: 0, cats: {}, incCats: {} });
+    for (const t of clean) {
+      const b = byMonth[t.mk];
+      if (t.type === "expense") {
+        b.expense += t.amount;
+        b.cats[t.category] = (b.cats[t.category] || 0) + t.amount;
+      } else {
+        b.income += t.amount;
+        b.incCats[t.category] = (b.incCats[t.category] || 0) + t.amount;
+      }
+    }
+    const monthly = months.map((mk) => ({ ...byMonth[mk], net: byMonth[mk].income - byMonth[mk].expense }));
+    const closedMonths = monthly.filter((m) => m.mk < curMk);
+    const cur = byMonth[curMk];
+    const allExpCatsEarly = [...new Set(closedMonths.flatMap((m) => Object.keys(m.cats)).concat(Object.keys(cur.cats)))];
+    const stableCatIds = new Set(allExpCatsEarly.filter((cat) => {
+      const hist = closedMonths.slice(-8).map((m) => m.cats[cat] || 0).filter((v) => v > 0);
+      if (hist.length < 2) return false;
+      const hMean = mean(hist), hStdev = stdev(hist);
+      if (hMean <= 0) return false;
+      if (hStdev / hMean < 0.35) return true;
+      const limit = budgets[cat];
+      return Number.isFinite(limit) && limit > 0 && Math.abs(hMean - limit) / limit < 0.25;
+    }));
+    const doneForMonthCatIds = new Set(allExpCatsEarly.filter((cat) => {
+      const hist = closedMonths.slice(-8).map((m2) => m2.cats[cat] || 0).filter((v) => v > 0);
+      const m = median(hist);
+      return m > 0 && (cur.cats[cat] || 0) >= m * 0.75;
+    }));
+    const y = now.getFullYear(), mo = now.getMonth();
+    const dim = daysInMonth2(y, mo);
+    const today = now.getDate();
+    const daysLeft = dim - today;
+    const dayTotals = {};
+    const from56 = new Date(now);
+    from56.setDate(from56.getDate() - 56);
+    for (const t of expenses)
+      if (t.d >= from56 && t.d <= now && !t.recurringId && !taggedMonthlyCatIds.has(t.category) && !stableCatIds.has(t.category) && !doneForMonthCatIds.has(t.category)) {
+        dayTotals[t.date] = (dayTotals[t.date] || 0) + t.amount;
+      }
+    const dailySeries = [];
+    const weekdaySums = Array(7).fill(0), weekdayCnt = Array(7).fill(0);
+    for (let i = 0; i < 56; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const v = dayTotals[key] || 0;
+      dailySeries.push(v);
+      const wd = (d.getDay() + 6) % 7;
+      weekdaySums[wd] += v;
+      weekdayCnt[wd]++;
+    }
+    const baseDaily = median(dailySeries.filter((v) => v > 0)) || mean(dailySeries);
+    const overallDailyMean = mean(dailySeries) || 1;
+    const weekdayCoef = weekdaySums.map((s, i) => weekdayCnt[i] ? clamp(s / weekdayCnt[i] / overallDailyMean, 0.35, 2.2) : 1);
+    const dailyRate = mean(dailySeries) || baseDaily;
+    let restExpect = 0;
+    for (let dd = today + 1; dd <= dim; dd++) {
+      const wd = (new Date(y, mo, dd).getDay() + 6) % 7;
+      restExpect += dailyRate * weekdayCoef[wd];
+    }
+    const sigmaDay = stdev(dailySeries);
+    const corridor = 1.28 * sigmaDay * Math.sqrt(Math.max(daysLeft, 0));
+    const upcomingRecurring = (recurringTemplates || []).filter((rt) => {
+      if (!rt.active || rt.type !== "expense" || rt.dayOfMonth <= today)
+        return false;
+      return !expenses.some((t) => t.recurringId === rt.id && t.mk === curMk);
+    });
+    const upcomingRecurringTotal = upcomingRecurring.reduce((s, rt) => s + rt.amount, 0);
+    const eomForecast = cur.expense + restExpect + upcomingRecurringTotal;
+    const eomLow = Math.max(cur.expense, eomForecast - corridor);
+    const eomHigh = eomForecast + corridor;
+    const cumCurve = [];
+    let acc = 0;
+    const spentByDay = {};
+    for (const t of expenses)
+      if (t.mk === curMk) {
+        const dd = t.d.getDate();
+        spentByDay[dd] = (spentByDay[dd] || 0) + t.amount;
+      }
+    for (let dd = 1; dd <= dim; dd++) {
+      if (dd <= today) {
+        acc += spentByDay[dd] || 0;
+        cumCurve.push({ day: dd, fact: Math.round(acc) });
+      } else {
+        const prev = cumCurve[cumCurve.length - 1];
+        const base = prev.proj != null ? prev.proj : prev.fact;
+        const wd = (new Date(y, mo, dd).getDay() + 6) % 7;
+        const step = dailyRate * weekdayCoef[wd];
+        const proj = base + step;
+        const frac = Math.sqrt((dd - today) / Math.max(daysLeft, 1));
+        cumCurve.push({
+          day: dd,
+          proj: Math.round(proj),
+          band: [Math.round(Math.max(acc, proj - corridor * frac)), Math.round(proj + corridor * frac)]
+        });
+      }
+    }
+    if (daysLeft > 0 && cumCurve[today - 1])
+      cumCurve[today - 1].proj = cumCurve[today - 1].fact;
+    const recurringCatIds = new Set((recurringTemplates || []).filter((rt) => rt.active && rt.type === "expense").map((rt) => rt.category));
+    const allExpCats = [...new Set(expenses.map((t) => t.category))];
+    const catForecasts = allExpCats.map((cat) => {
+      const series = closedMonths.slice(-8).map((m) => m.cats[cat] || 0);
+      const holt = holtDamped(series, 1)[0];
+      const mtd = cur.cats[cat] || 0;
+      const isTaggedMonthly = taggedMonthlyCatIds.has(cat);
+      const histValsEarly = series.filter((v) => v > 0);
+      const histMedianEarly = median(histValsEarly);
+      const isFixedMonthly = isTaggedMonthly || recurringCatIds.has(cat) || stableCatIds.has(cat) || doneForMonthCatIds.has(cat);
+      if (isFixedMonthly) {
+        const limit2 = budgets[cat];
+        const histVals2 = histValsEarly;
+        const forecast2 = Math.max(mtd, histMedianEarly || holt);
+        return { cat, mtd, forecast: forecast2, histMedian: histMedianEarly, limit: Number.isFinite(limit2) && limit2 > 0 ? limit2 : null, trend: 0, isFixed: true };
+      }
+      const pace = today >= 5 ? mtd / today * dim : holt;
+      const w = clamp(today / dim, 0.15, 0.85);
+      const forecast = Math.max(mtd, w * pace + (1 - w) * holt);
+      const limit = budgets[cat];
+      const histVals = series.filter((v) => v > 0);
+      return {
+        cat,
+        mtd,
+        forecast,
+        histMedian: median(histVals),
+        limit: Number.isFinite(limit) && limit > 0 ? limit : null,
+        trend: series.length >= 4 ? mean(series.slice(-2)) - mean(series.slice(0, 2)) : 0,
+        isFixed: false
+      };
+    }).sort((a, b) => b.forecast - a.forecast);
+    const budgetRisks = catForecasts.filter((c) => c.limit && !c.isFixed).map((c) => {
+      const ratio = c.forecast / c.limit;
+      const status = c.mtd > c.limit ? "over" : ratio > 1 ? "risk" : ratio > 0.85 ? "warn" : "ok";
+      return { ...c, ratio, status };
+    }).sort((a, b) => b.ratio - a.ratio);
+    let balance = (accounts || []).reduce((s, a) => s + (Number(a.balance) || 0), 0);
+    const hasAccBalances = (accounts || []).some((a) => Number.isFinite(Number(a.balance)));
+    if (!hasAccBalances)
+      balance = clean.reduce((s, t) => s + (t.type === "income" ? t.amount : -t.amount), 0);
+    const incSeries = closedMonths.slice(-8).map((m) => m.income);
+    const expSeries = closedMonths.slice(-8).map((m) => m.expense);
+    const incForecasts = holtDamped(incSeries, 6);
+    const expForecasts = holtDamped(expSeries, 6);
+    const incMed = median(incSeries.filter((v) => v > 0));
+    const balanceCurve = [];
+    const histTail = closedMonths.slice(-5);
+    let run = balance;
+    let backAcc = balance - (cur.income - cur.expense);
+    const histPoints = [];
+    for (let i = histTail.length - 1; i >= 0; i--) {
+      histPoints.unshift({ mk: histTail[i].mk, value: backAcc });
+      backAcc -= histTail[i].net;
+    }
+    histPoints.forEach((p) => balanceCurve.push({ mk: p.mk, fact: Math.round(p.value) }));
+    balanceCurve.push({ mk: curMk, fact: Math.round(balance), proj: Math.round(balance) });
+    run = balance + Math.max(0, incMed - cur.income) - restExpect;
+    const projMonths = [];
+    for (let h = 1; h <= 6; h++) {
+      const d = new Date(y, mo + h, 1);
+      projMonths.push(monthKey(d));
+    }
+    balanceCurve[balanceCurve.length - 1].proj = Math.round(balance);
+    let runVal = run;
+    projMonths.forEach((mk, i) => {
+      if (i > 0)
+        runVal += (incForecasts[i] || incMed) - (expForecasts[i] || median(expSeries));
+      balanceCurve.push({ mk, proj: Math.round(runVal) });
+    });
+    const monthlyNetForecast = (incForecasts[1] || incMed) - (expForecasts[1] || median(expSeries));
+    const goalStats = (goals || []).map((g) => {
+      const target = Number(g.targetAmount || g.target || 0);
+      const acc2 = (accounts || []).find((a) => a.id === g.accountId);
+      let saved = Number(g.currentAmount);
+      if (!Number.isFinite(saved))
+        saved = acc2 ? Number(acc2.balance) || 0 : 0;
+      const inflows = transactions.filter((t) => t.accountId === g.accountId && t.type === "income" && parseDate(t.date));
+      const perMonth = {};
+      inflows.forEach((t) => {
+        const mk = monthKey(parseDate(t.date));
+        perMonth[mk] = (perMonth[mk] || 0) + Number(t.amount || 0);
+      });
+      const contribs = Object.entries(perMonth).filter(([mk]) => mk < curMk).map(([, v]) => v);
+      let monthlyContrib = median(contribs);
+      if (!monthlyContrib && monthlyNetForecast > 0)
+        monthlyContrib = monthlyNetForecast * 0.5;
+      const left = Math.max(0, target - saved);
+      const etaMonths = monthlyContrib > 0 ? Math.ceil(left / monthlyContrib) : null;
+      let etaDate = null;
+      if (etaMonths != null && etaMonths < 240) {
+        const d = new Date(y, mo + etaMonths, 1);
+        etaDate = `${MONTHS_RU[d.getMonth()]} ${d.getFullYear()}`;
+      }
+      return { name: g.name || g.title || "\u0426\u0435\u043B\u044C", target, saved, monthlyContrib, etaMonths, etaDate };
+    }).filter((g) => g.target > 0);
+    const anomalies = [];
+    for (const cat of allExpCats) {
+      const txs = expenses.filter((t) => t.category === cat);
+      if (txs.length < 6)
+        continue;
+      const amounts = txs.map((t) => t.amount);
+      const m = median(amounts), md = mad(amounts) || stdev(amounts) / 1.4826 || 1;
+      for (const t of txs.slice(-120)) {
+        const z = (t.amount - m) / (1.4826 * md);
+        if (z > 3 && t.amount > m * 2)
+          anomalies.push({ ...t, z, catMedian: m });
+      }
+    }
+    anomalies.sort((a, b) => b.d - a.d);
+    const recGroups = {};
+    for (const t of expenses) {
+      const key = `${t.category}|${(t.note || "").trim().toLowerCase()}`;
+      (recGroups[key] = recGroups[key] || []).push(t);
+    }
+    const detectedRecurring = [];
+    for (const [key, txs] of Object.entries(recGroups)) {
+      const byMk = {};
+      txs.forEach((t) => {
+        (byMk[t.mk] = byMk[t.mk] || []).push(t);
+      });
+      const mks = Object.keys(byMk).sort();
+      if (mks.length < 3)
+        continue;
+      const monthAmounts = mks.map((mk) => byMk[mk].reduce((s, t) => s + t.amount, 0));
+      const m = median(monthAmounts);
+      const spread = mad(monthAmounts) / (m || 1);
+      const days = mks.map((mk) => byMk[mk][0].d.getDate());
+      const daySpread = mad(days);
+      if (spread < 0.12 && daySpread <= 4 && m > 0) {
+        const [cat, note] = key.split("|");
+        const lastMk = mks[mks.length - 1];
+        detectedRecurring.push({
+          cat,
+          note,
+          amount: m,
+          day: Math.round(median(days)),
+          monthsSeen: mks.length,
+          activeNow: lastMk >= monthKey(new Date(y, mo - 1, 1))
+        });
+      }
+    }
+    detectedRecurring.sort((a, b) => b.amount - a.amount);
+    const recurringMonthly = detectedRecurring.filter((r) => r.activeNow).reduce((s, r) => s + r.amount, 0);
+    const limitSum = Object.values(budgets).reduce((s, v) => s + v, 0);
+    const monthEnvelope = limitSum > 0 ? limitSum : incMed > 0 ? incMed * 0.9 : eomForecast;
+    const safePerDay = daysLeft > 0 ? Math.max(0, (monthEnvelope - cur.expense) / daysLeft) : 0;
+    const last3 = closedMonths.slice(-3);
+    const savingsRate = (() => {
+      const inc = last3.reduce((s, m) => s + m.income, 0);
+      const exp = last3.reduce((s, m) => s + m.expense, 0);
+      return inc > 0 ? (inc - exp) / inc : null;
+    })();
+    const movers = catForecasts.filter((c) => c.histMedian > 0).map((c) => ({ ...c, deltaPct: (c.forecast - c.histMedian) / c.histMedian })).filter((c) => Math.abs(c.deltaPct) > 0.2 && Math.abs(c.forecast - c.histMedian) > 500).sort((a, b) => Math.abs(b.deltaPct) - Math.abs(a.deltaPct)).slice(0, 4);
+    return {
+      clean,
+      expenses,
+      incomes,
+      monthly,
+      closedMonths,
+      cur,
+      curMk,
+      dim,
+      today,
+      daysLeft,
+      dailyRate,
+      weekdayCoef,
+      eomForecast,
+      eomLow,
+      eomHigh,
+      cumCurve,
+      catForecasts,
+      budgetRisks,
+      balance,
+      balanceCurve,
+      monthlyNetForecast,
+      goalStats,
+      anomalies,
+      detectedRecurring,
+      recurringMonthly,
+      safePerDay,
+      savingsRate,
+      movers,
+      incMed,
+      customCategories,
+      budgets,
+      recurringTemplates
+    };
   }
   function mulberry32(seed) {
     return function() {

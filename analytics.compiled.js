@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Area, Legend, ReferenceLine, } from "recharts";
-import { buildEngine as fiBuildEngine, normalizeDataset as fiNormalizeDataset, MONTHS_RU } from "./financial-intelligence/engine.js";
 /* ============================================================================
    Kopiqo Analytics — анализатор и прогнозатор.
    Понимает формат finance:state приложения Kopiqo:
@@ -22,7 +21,7 @@ const CAT_META = {
     gift: { name: "Подарки", color: "#BE9BB8" },
     other_inc: { name: "Другой доход", color: "#ABA58F" },
 };
-// MONTHS_RU comes from the top-level import (financial-intelligence/engine.js).
+const MONTHS_RU = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 const WEEKDAYS_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const C = {
     bg: "#F3EEE3", card: "#FBF8F0", cardSoft: "#F7F2E7",
@@ -90,22 +89,314 @@ function holtDamped(series, horizon = 1, alpha = 0.5, beta = 0.3, phi = 0.85) {
     return out;
 }
 /* ------------------------- Нормализация данных Kopiqo ----------------------- */
-// Delegates to financial-intelligence/engine.js — the single source of truth
-// (see that file's header). This also brings the standalone tool up to
-// parity with the in-app version, which had gained monthlyCatIds /
-// categoryTypeOverrides support this file never had.
-function normalizeDataset(raw, categoryTypeOverrides) {
-    return fiNormalizeDataset(raw, categoryTypeOverrides);
+function normalizeDataset(raw) {
+    const src = raw || {};
+    const state = src.transactions ? src : (src["finance:state"] ? JSON.parse(src["finance:state"]) : src);
+    const transactions = Array.isArray(state.transactions) ? state.transactions : [];
+    // Бюджеты: либо { category: limit }, либо { accountId: { category: limit } }.
+    let budgets = {};
+    const rawB = state.budgets || {};
+    const vals = Object.values(rawB);
+    if (vals.length && typeof vals[0] === "object" && vals[0] !== null) {
+        for (const perAcc of vals)
+            for (const [cat, lim] of Object.entries(perAcc))
+                budgets[cat] = (budgets[cat] || 0) + (Number(lim) || 0);
+    }
+    else {
+        for (const [cat, lim] of Object.entries(rawB))
+            budgets[cat] = Number(lim) || 0;
+    }
+    const custom = {};
+    (state.customCategories || []).forEach((c) => {
+        if (c && c.id)
+            custom[c.id] = { name: c.name || c.id, color: c.color || "#ABA58F" };
+    });
+    return {
+        transactions,
+        budgets,
+        customCategories: custom,
+        accounts: state.accounts || [],
+        goals: state.goals || [],
+        debts: state.debts || [],
+        recurringTemplates: state.recurringTemplates || [],
+    };
 }
 const catName = (id, custom) => (CAT_META[id] && CAT_META[id].name) || (custom[id] && custom[id].name) || id;
 const catColor = (id, custom) => (CAT_META[id] && CAT_META[id].color) || (custom[id] && custom[id].color) || "#ABA58F";
 /* --------------------------------- Движок --------------------------------- */
 function buildEngine(dataset, now) {
-    // Delegates to financial-intelligence/engine.js — the single source of
-    // truth for this calculation (see that file's header for why). This
-    // also brings the standalone tool up to parity with the in-app
-    // version's "fixed monthly category" handling it never had.
-    return fiBuildEngine(dataset, now);
+    const { transactions, budgets, customCategories, accounts, goals, recurringTemplates } = dataset;
+    // Чистый поток: без переводов между счетами и без служебных маркеров.
+    const clean = [];
+    for (const t of transactions) {
+        if (!t || t.transferId)
+            continue;
+        if (t.category === "transfer" || t.category === "account_deleted")
+            continue;
+        const d = parseDate(t.date);
+        const amount = Number(t.amount);
+        if (!d || !Number.isFinite(amount) || amount <= 0)
+            continue;
+        if (t.type !== "expense" && t.type !== "income")
+            continue;
+        clean.push({ ...t, d, amount, mk: monthKey(d) });
+    }
+    clean.sort((a, b) => a.d - b.d);
+    const expenses = clean.filter((t) => t.type === "expense");
+    const incomes = clean.filter((t) => t.type === "income");
+    /* --- Месячные ряды --- */
+    const monthSet = new Set(clean.map((t) => t.mk));
+    const curMk = monthKey(now);
+    monthSet.add(curMk);
+    const months = [...monthSet].sort();
+    const byMonth = {};
+    months.forEach((mk) => (byMonth[mk] = { mk, income: 0, expense: 0, cats: {}, incCats: {} }));
+    for (const t of clean) {
+        const b = byMonth[t.mk];
+        if (t.type === "expense") {
+            b.expense += t.amount;
+            b.cats[t.category] = (b.cats[t.category] || 0) + t.amount;
+        }
+        else {
+            b.income += t.amount;
+            b.incCats[t.category] = (b.incCats[t.category] || 0) + t.amount;
+        }
+    }
+    const monthly = months.map((mk) => ({ ...byMonth[mk], net: byMonth[mk].income - byMonth[mk].expense }));
+    const closedMonths = monthly.filter((m) => m.mk < curMk); // завершённые месяцы
+    const cur = byMonth[curMk];
+    /* --- Текущий месяц: темп, прогноз до конца месяца --- */
+    const y = now.getFullYear(), mo = now.getMonth();
+    const dim = daysInMonth(y, mo);
+    const today = now.getDate();
+    const daysLeft = dim - today;
+    // Дневные расходы за последние 56 дней (для устойчивого темпа и недельного профиля).
+    const dayTotals = {}; // 'YYYY-MM-DD' -> sum
+    const from56 = new Date(now);
+    from56.setDate(from56.getDate() - 56);
+    for (const t of expenses)
+        if (t.d >= from56 && t.d <= now) {
+            dayTotals[t.date] = (dayTotals[t.date] || 0) + t.amount;
+        }
+    const dailySeries = [];
+    const weekdaySums = Array(7).fill(0), weekdayCnt = Array(7).fill(0);
+    for (let i = 0; i < 56; i++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const v = dayTotals[key] || 0;
+        dailySeries.push(v);
+        const wd = (d.getDay() + 6) % 7; // Пн=0
+        weekdaySums[wd] += v;
+        weekdayCnt[wd]++;
+    }
+    const baseDaily = median(dailySeries.filter((v) => v > 0)) || mean(dailySeries);
+    const overallDailyMean = mean(dailySeries) || 1;
+    const weekdayCoef = weekdaySums.map((s, i) => weekdayCnt[i] ? clamp((s / weekdayCnt[i]) / overallDailyMean, 0.35, 2.2) : 1);
+    const dailyRate = mean(dailySeries) || baseDaily;
+    // Прогноз до конца месяца: факт + ожидание по оставшимся дням с учётом дня недели.
+    let restExpect = 0;
+    for (let dd = today + 1; dd <= dim; dd++) {
+        const wd = (new Date(y, mo, dd).getDay() + 6) % 7;
+        restExpect += dailyRate * weekdayCoef[wd];
+    }
+    const sigmaDay = stdev(dailySeries);
+    const corridor = 1.28 * sigmaDay * Math.sqrt(Math.max(daysLeft, 0)); // ~80% интервал
+    const eomForecast = cur.expense + restExpect;
+    const eomLow = Math.max(cur.expense, eomForecast - corridor);
+    const eomHigh = eomForecast + corridor;
+    // Кумулятивная кривая месяца: факт и прогнозная лента.
+    const cumCurve = [];
+    let acc = 0;
+    const spentByDay = {};
+    for (const t of expenses)
+        if (t.mk === curMk) {
+            const dd = t.d.getDate();
+            spentByDay[dd] = (spentByDay[dd] || 0) + t.amount;
+        }
+    for (let dd = 1; dd <= dim; dd++) {
+        if (dd <= today) {
+            acc += spentByDay[dd] || 0;
+            cumCurve.push({ day: dd, fact: Math.round(acc) });
+        }
+        else {
+            const prev = cumCurve[cumCurve.length - 1];
+            const base = (prev.proj != null ? prev.proj : prev.fact);
+            const wd = (new Date(y, mo, dd).getDay() + 6) % 7;
+            const step = dailyRate * weekdayCoef[wd];
+            const proj = base + step;
+            const frac = Math.sqrt((dd - today) / Math.max(daysLeft, 1));
+            cumCurve.push({
+                day: dd, proj: Math.round(proj),
+                band: [Math.round(Math.max(acc, proj - corridor * frac)), Math.round(proj + corridor * frac)],
+            });
+        }
+    }
+    // сшивка линий на сегодняшнем дне
+    if (daysLeft > 0 && cumCurve[today - 1])
+        cumCurve[today - 1].proj = cumCurve[today - 1].fact;
+    /* --- Прогноз по категориям (Хольт по завершённым месяцам + текущий темп) --- */
+    const allExpCats = [...new Set(expenses.map((t) => t.category))];
+    const catForecasts = allExpCats.map((cat) => {
+        const series = closedMonths.slice(-8).map((m) => m.cats[cat] || 0);
+        const holt = holtDamped(series, 1)[0];
+        const mtd = cur.cats[cat] || 0;
+        // темп текущего месяца, растянутый на весь месяц (с защитой в начале месяца)
+        const pace = today >= 5 ? (mtd / today) * dim : holt;
+        const w = clamp(today / dim, 0.15, 0.85); // чем дальше месяц, тем больше вес факта
+        const forecast = Math.max(mtd, w * pace + (1 - w) * holt);
+        const limit = budgets[cat];
+        const histVals = series.filter((v) => v > 0);
+        return {
+            cat, mtd, forecast,
+            histMedian: median(histVals),
+            limit: Number.isFinite(limit) && limit > 0 ? limit : null,
+            trend: series.length >= 4 ? mean(series.slice(-2)) - mean(series.slice(0, 2)) : 0,
+        };
+    }).sort((a, b) => b.forecast - a.forecast);
+    const budgetRisks = catForecasts
+        .filter((c) => c.limit)
+        .map((c) => {
+        const ratio = c.forecast / c.limit;
+        const status = c.mtd > c.limit ? "over" : ratio > 1 ? "risk" : ratio > 0.85 ? "warn" : "ok";
+        return { ...c, ratio, status };
+    })
+        .sort((a, b) => b.ratio - a.ratio);
+    /* --- Баланс и прогноз на 6 месяцев --- */
+    let balance = (accounts || []).reduce((s, a) => s + (Number(a.balance) || 0), 0);
+    const hasAccBalances = (accounts || []).some((a) => Number.isFinite(Number(a.balance)));
+    if (!hasAccBalances)
+        balance = clean.reduce((s, t) => s + (t.type === "income" ? t.amount : -t.amount), 0);
+    const incSeries = closedMonths.slice(-8).map((m) => m.income);
+    const expSeries = closedMonths.slice(-8).map((m) => m.expense);
+    const incForecasts = holtDamped(incSeries, 6);
+    const expForecasts = holtDamped(expSeries, 6);
+    const incMed = median(incSeries.filter((v) => v > 0));
+    const balanceCurve = [];
+    const histTail = closedMonths.slice(-5);
+    let run = balance;
+    // восстановим баланс на начало хвоста истории
+    let backAcc = balance - (cur.income - cur.expense);
+    const histPoints = [];
+    for (let i = histTail.length - 1; i >= 0; i--) {
+        histPoints.unshift({ mk: histTail[i].mk, value: backAcc });
+        backAcc -= histTail[i].net;
+    }
+    histPoints.forEach((p) => balanceCurve.push({ mk: p.mk, fact: Math.round(p.value) }));
+    balanceCurve.push({ mk: curMk, fact: Math.round(balance), proj: Math.round(balance) });
+    // остаток текущего месяца
+    run = balance + Math.max(0, incMed - cur.income) - restExpect;
+    const projMonths = [];
+    for (let h = 1; h <= 6; h++) {
+        const d = new Date(y, mo + h, 1);
+        projMonths.push(monthKey(d));
+    }
+    balanceCurve[balanceCurve.length - 1].proj = Math.round(balance);
+    let runVal = run;
+    projMonths.forEach((mk, i) => {
+        if (i > 0)
+            runVal += (incForecasts[i] || incMed) - (expForecasts[i] || median(expSeries));
+        balanceCurve.push({ mk, proj: Math.round(runVal) });
+    });
+    const monthlyNetForecast = (incForecasts[1] || incMed) - (expForecasts[1] || median(expSeries));
+    /* --- Цели: срок достижения --- */
+    const goalStats = (goals || []).map((g) => {
+        const target = Number(g.targetAmount || g.target || 0);
+        const acc2 = (accounts || []).find((a) => a.id === g.accountId);
+        let saved = Number(g.currentAmount);
+        if (!Number.isFinite(saved))
+            saved = acc2 ? Number(acc2.balance) || 0 : 0;
+        // средний месячный прирост: переводы на счёт цели за последние месяцы
+        const inflows = transactions.filter((t) => t.accountId === g.accountId && t.type === "income" && parseDate(t.date));
+        const perMonth = {};
+        inflows.forEach((t) => {
+            const mk = monthKey(parseDate(t.date));
+            perMonth[mk] = (perMonth[mk] || 0) + Number(t.amount || 0);
+        });
+        const contribs = Object.entries(perMonth).filter(([mk]) => mk < curMk).map(([, v]) => v);
+        let monthlyContrib = median(contribs);
+        if (!monthlyContrib && monthlyNetForecast > 0)
+            monthlyContrib = monthlyNetForecast * 0.5;
+        const left = Math.max(0, target - saved);
+        const etaMonths = monthlyContrib > 0 ? Math.ceil(left / monthlyContrib) : null;
+        let etaDate = null;
+        if (etaMonths != null && etaMonths < 240) {
+            const d = new Date(y, mo + etaMonths, 1);
+            etaDate = `${MONTHS_RU[d.getMonth()]} ${d.getFullYear()}`;
+        }
+        return { name: g.name || g.title || "Цель", target, saved, monthlyContrib, etaMonths, etaDate };
+    }).filter((g) => g.target > 0);
+    /* --- Аномалии: робастный z-скор по MAD внутри категории --- */
+    const anomalies = [];
+    for (const cat of allExpCats) {
+        const txs = expenses.filter((t) => t.category === cat);
+        if (txs.length < 6)
+            continue;
+        const amounts = txs.map((t) => t.amount);
+        const m = median(amounts), md = mad(amounts) || stdev(amounts) / 1.4826 || 1;
+        for (const t of txs.slice(-120)) {
+            const z = (t.amount - m) / (1.4826 * md);
+            if (z > 3 && t.amount > m * 2)
+                anomalies.push({ ...t, z, catMedian: m });
+        }
+    }
+    anomalies.sort((a, b) => b.d - a.d);
+    /* --- Повторяющиеся платежи: ≥3 месяцев, похожая сумма и день --- */
+    const recGroups = {};
+    for (const t of expenses) {
+        const key = `${t.category}|${(t.note || "").trim().toLowerCase()}`;
+        (recGroups[key] = recGroups[key] || []).push(t);
+    }
+    const detectedRecurring = [];
+    for (const [key, txs] of Object.entries(recGroups)) {
+        const byMk = {};
+        txs.forEach((t) => { (byMk[t.mk] = byMk[t.mk] || []).push(t); });
+        const mks = Object.keys(byMk).sort();
+        if (mks.length < 3)
+            continue;
+        const monthAmounts = mks.map((mk) => byMk[mk].reduce((s, t) => s + t.amount, 0));
+        const m = median(monthAmounts);
+        const spread = mad(monthAmounts) / (m || 1);
+        const days = mks.map((mk) => byMk[mk][0].d.getDate());
+        const daySpread = mad(days);
+        if (spread < 0.12 && daySpread <= 4 && m > 0) {
+            const [cat, note] = key.split("|");
+            const lastMk = mks[mks.length - 1];
+            detectedRecurring.push({
+                cat, note, amount: m, day: Math.round(median(days)),
+                monthsSeen: mks.length, activeNow: lastMk >= monthKey(new Date(y, mo - 1, 1)),
+            });
+        }
+    }
+    detectedRecurring.sort((a, b) => b.amount - a.amount);
+    const recurringMonthly = detectedRecurring.filter((r) => r.activeNow).reduce((s, r) => s + r.amount, 0);
+    /* --- Безопасный дневной лимит --- */
+    const limitSum = Object.values(budgets).reduce((s, v) => s + v, 0);
+    const monthEnvelope = limitSum > 0 ? limitSum : incMed > 0 ? incMed * 0.9 : eomForecast;
+    const safePerDay = daysLeft > 0 ? Math.max(0, (monthEnvelope - cur.expense) / daysLeft) : 0;
+    /* --- Норма сбережений и динамика --- */
+    const last3 = closedMonths.slice(-3);
+    const savingsRate = (() => {
+        const inc = last3.reduce((s, m) => s + m.income, 0);
+        const exp = last3.reduce((s, m) => s + m.expense, 0);
+        return inc > 0 ? (inc - exp) / inc : null;
+    })();
+    // Сравнение категорий: текущий прогноз vs медиана прошлых месяцев
+    const movers = catForecasts
+        .filter((c) => c.histMedian > 0)
+        .map((c) => ({ ...c, deltaPct: (c.forecast - c.histMedian) / c.histMedian }))
+        .filter((c) => Math.abs(c.deltaPct) > 0.2 && Math.abs(c.forecast - c.histMedian) > 500)
+        .sort((a, b) => Math.abs(b.deltaPct) - Math.abs(a.deltaPct))
+        .slice(0, 4);
+    return {
+        clean, expenses, incomes, monthly, closedMonths, cur, curMk,
+        dim, today, daysLeft, dailyRate, weekdayCoef,
+        eomForecast, eomLow, eomHigh, cumCurve,
+        catForecasts, budgetRisks, balance, balanceCurve, monthlyNetForecast,
+        goalStats, anomalies, detectedRecurring, recurringMonthly,
+        safePerDay, savingsRate, movers, incMed,
+        customCategories, budgets, recurringTemplates,
+    };
 }
 /* ------------------------------ Демо-данные ------------------------------- */
 function mulberry32(seed) {

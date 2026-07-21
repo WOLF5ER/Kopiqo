@@ -338,8 +338,15 @@ function themeClassName(theme) {
   if (!theme || theme === "light") return "";
   return `gb-${theme.replace(/_/g, "-")}`;
 }
-const APP_VERSION = "8.4";
+const APP_VERSION = "8.5";
 const CHANGELOG = [
+  {
+    version: "8.5",
+    date: "20.07.2026",
+    greeting: "changelog_8_5_greeting",
+    items: ["changelog_8_5_1", "changelog_8_5_2"],
+    thanks: "changelog_8_5_thanks"
+  },
   {
     version: "8.4",
     date: "20.07.2026",
@@ -999,6 +1006,10 @@ const I18N = {
   whats_new_intro: { ru: "\u041E\u0442 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u0430:", en: "From the developer:", zh: "\u6765\u81EA\u5F00\u53D1\u8005:" },
   whats_new_close: { ru: "\u041F\u043E\u043D\u044F\u0442\u043D\u043E", en: "Got it", zh: "\u77E5\u9053\u4E86" },
   previous_updates_label: { ru: "\u041F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0438\u0435 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F", en: "Previous updates", zh: "\u4EE5\u5F80\u66F4\u65B0" },
+  changelog_8_5_greeting: { ru: "Разбор стал точнее", en: "Intelligence got sharper", zh: "智能分析更精准了" },
+  changelog_8_5_1: { ru: "Карточки о регулярных платежах теперь называют платёж по имени и не сообщают о суммах, которых на самом деле не было: несколько переводов одному человеку в месяц больше не склеиваются в один несуществующий «платёж».", en: "Recurring payment cards now call the payment by name and no longer report amounts that never existed: several transfers to the same person in one month are no longer merged into a single phantom \"payment\".", zh: "定期付款卡片现在会显示付款名称，也不再报告实际不存在的金额：同月向同一人的多笔转账不会再被合并成一笔虚构的「付款」。" },
+  changelog_8_5_2: { ru: "Карточки одного типа больше не используют разные формулировки в одном списке — раньше это выглядело как повторы об одном и том же.", en: "Cards of the same type no longer use different wordings in one list — previously that read like the same thing said twice.", zh: "同类卡片在同一列表中不再使用不同措辞——此前这看起来像同一件事被重复表述。" },
+  changelog_8_5_thanks: { ru: "Спасибо за скриншоты с примерами — по ним обе проблемы нашлись за минуты.", en: "Thanks for the screenshots — they made both issues findable in minutes.", zh: "感谢您提供的截图示例——它们让两个问题在几分钟内就被定位。" },
   changelog_8_4_greeting: { ru: "Встречайте Kopiqo Intelligence", en: "Meet Kopiqo Intelligence", zh: "全新推出 Kopiqo Intelligence" },
   changelog_8_4_1: { ru: "Новая вкладка «Разбор» — Kopiqo сам находит закономерности в ваших финансах: рост категорий, забытые подписки, необычные покупки, риск выйти за бюджет — и объясняет их простым языком с конкретной рекомендацией.", en: "A new \"Intelligence\" tab — Kopiqo now finds patterns in your finances on its own: category growth, forgotten subscriptions, unusual purchases, budget risk — and explains each one in plain language with a concrete next step.", zh: "全新「智能分析」标签页——Kopiqo 现在能自动发现您财务中的规律：分类支出增长、被遗忘的订阅、异常消费、超预算风险等，并用简明语言给出具体建议。" },
   changelog_8_4_2: { ru: "Появилась оценка «Финансовое здоровье» от 0 до 100 — она учитывает норму сбережений, дисциплину по бюджетам, стабильность дохода, финансовую подушку, прогресс по целям и ещё пару факторов.", en: "A new 0-100 \"Financial Health\" score — built from your savings rate, budget discipline, income stability, safety buffer, goal progress, and a couple more factors.", zh: "新增 0-100 分的「财务健康」评分——综合考量储蓄率、预算执行、收入稳定性、应急资金储备、目标进度等多项指标。" },

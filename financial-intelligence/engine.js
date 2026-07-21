@@ -418,17 +418,28 @@ function buildEngine(dataset, now) {
     const mks = Object.keys(byMk).sort();
     if (mks.length < 3)
       continue;
+    // A recurring payment is ONE charge per month. Without this check the
+    // month totals of a group with several operations a month (e.g. 1-3
+    // transfers to the same person, different amounts each time) can be
+    // stable enough to pass the spread test — and the reported "amount" is
+    // then a median of monthly SUMS, i.e. a payment that never actually
+    // happened. Confirmed against real data.
+    if (!mks.every((mk) => byMk[mk].length === 1))
+      continue;
     const monthAmounts = mks.map((mk) => byMk[mk].reduce((s, t) => s + t.amount, 0));
     const m = median(monthAmounts);
     const spread = mad(monthAmounts) / (m || 1);
     const days = mks.map((mk) => byMk[mk][0].d.getDate());
     const daySpread = mad(days);
     if (spread < 0.12 && daySpread <= 4 && m > 0) {
-      const [cat, note] = key.split("|");
+      const [cat] = key.split("|");
       const lastMk = mks[mks.length - 1];
       detectedRecurring.push({
         cat,
-        note,
+        // Original casing from the transaction itself — the group key is
+        // lowercased for matching, but "Совкомбанк" should not surface to
+        // the user as "совкомбанк".
+        note: txs[0].note || "",
         amount: m,
         day: Math.round(median(days)),
         monthsSeen: mks.length,

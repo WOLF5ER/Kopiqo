@@ -191,13 +191,13 @@ export const TEMPLATES_RU = {
     icon: "Repeat",
     variants: [
       {
-        title: "Похоже на регулярный платёж",
-        description: "Уже {monthsSeen} мес. подряд встречается платёж на {amount} (обычно {dayOfMonth} числа) в категории «{categoryName}».",
+        title: "Похоже на регулярный платёж: {note}",
+        description: "«{note}» — уже {monthsSeen} мес. подряд, около {amount} (обычно {dayOfMonth} числа), категория «{categoryName}».",
         recommendation: "Если это ожидаемый регулярный платёж — можно добавить его в шаблоны, чтобы Kopiqo учитывал его в прогнозах.",
       },
       {
-        title: "Обнаружен повторяющийся платёж",
-        description: "За последние {monthsSeen} мес. в «{categoryName}» стабильно повторяется платёж около {amount}.",
+        title: "Регулярный платёж: {note}",
+        description: "Платёж «{note}» на {amount} стабильно повторяется {monthsSeen} мес. подряд в категории «{categoryName}».",
         recommendation: "Стоит проверить, что это за платёж — и при необходимости добавить его как регулярный.",
       },
     ],

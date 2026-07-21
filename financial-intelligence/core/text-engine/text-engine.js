@@ -48,11 +48,11 @@ function formatMonthLabel(mk) {
   return `${name} ${y}`;
 }
 
-// A small stable string hash (djb2) — used only to pick a template variant
-// deterministically from a verdict's own content, NOT Math.random(). This
-// means the same verdict always reads the same way across re-renders (no
-// wording "flicker" as the UI updates), while different verdicts of the
-// same type still get variety because their data differs.
+// A small stable string hash (djb2) — used to derive insight ids from
+// verdict content, and to pick a template variant deterministically (from
+// type + current month — see the seeding comment in generateInsights), NOT
+// Math.random(). Deterministic seeding means no wording "flicker" across
+// re-renders.
 function stableHash(str) {
   let h = 5381;
   for (let i = 0; i < str.length; i++) h = (h * 33) ^ str.charCodeAt(i);
@@ -110,7 +110,15 @@ export function generateInsights(verdicts, opts = {}) {
       continue;
     }
     const dataKey = `${verdict.type}:${JSON.stringify(verdict.data)}`;
-    const variant = entry.variants[stableHash(dataKey) % entry.variants.length];
+    // Variant is seeded by type + current month, NOT by the verdict's data:
+    // several cards of the same type shown side by side must use the SAME
+    // wording, or they read as different kinds of findings (confirmed by
+    // real user feedback — two recurring-payment cards with different
+    // phrasings looked like "the same thing said twice in different
+    // interpretations"). Seeding by month keeps wording stable within a
+    // month while still rotating over time.
+    const variantKey = `${verdict.type}:${now.getFullYear()}-${now.getMonth()}`;
+    const variant = entry.variants[stableHash(variantKey) % entry.variants.length];
     const ctx = buildContext(verdict, { resolveCategoryName, formatMoney });
 
     insights.push({
